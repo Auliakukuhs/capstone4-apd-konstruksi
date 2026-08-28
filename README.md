@@ -3,8 +3,12 @@
 Capstone Project Module 4, Purwadhika Digital Technology School.
 Object detection untuk memeriksa kelengkapan alat pelindung diri di lokasi konstruksi.
 
-> Status pengerjaan: **hari 2 dari 15**. Bagian yang ditandai `[belum]` diisi
+> Status pengerjaan: **hari 3 dari 15**. Bagian yang ditandai `[belum]` diisi
 > sesuai urutan di `../catatan/URUTAN-KERJA.md`.
+>
+> Aplikasi sudah berjalan, tapi masih memakai bobot bawaan COCO karena training
+> belum dijalankan. Itu disengaja. Tujuan hari 3 membuktikan jalur dari kode
+> sampai link publik tembus, bukan menghasilkan model terbaik.
 
 ## 1. Masalah yang diselesaikan
 
@@ -94,7 +98,14 @@ dalam, dan menormalkan dua kali merusak input.
 
 ## 4. Model
 
-`[belum]` Hari 3 baseline, hari 8 sampai 10 eksperimen.
+Notebook `notebooks/02_training.ipynb` siap dijalankan di Google Colab. Ia
+melatih baseline 30 epoch pada `imgsz` 640, memverifikasi bahwa augmentasi
+geometris benar-benar mati lewat `args.yaml`, mengevaluasi di test set dengan
+`conf=0.001`, lalu menyimpan bobot dan catatan versinya ke Drive.
+
+`[belum]` Hasil training. Menunggu notebook dijalankan di Colab.
+
+`[belum]` Tabel eksperimen hari 8 sampai 10.
 
 ### Keputusan yang sudah diambil
 
@@ -149,34 +160,58 @@ model, karena gambar 30 megapiksel bisa mematikan server gratis.
 
 ## 8. Cara menjalankan ulang
 
-`[belum]` Diisi setelah aplikasinya jadi.
+Urutannya begini, dan tiap langkah berdiri sendiri.
 
 ```
 notebooks/01_eda_dataset.ipynb     pemeriksaan data          [selesai]
-notebooks/02_training.ipynb        training di Google Colab  [belum]
+notebooks/02_training.ipynb        training di Google Colab  [siap dijalankan]
 notebooks/03_evaluasi.ipynb        evaluasi dan eksperimen   [belum]
-app.py                             aplikasi Streamlit        [belum]
+app.py                             aplikasi Streamlit        [jalan]
 ```
 
-`01_eda_dataset.ipynb` mencari zip dataset di tiga lokasi, Google Drive di
-`MyDrive/capstone4/`, direktori kerja, dan folder `pilihan dataset dan aturan`.
-Tidak butuh GPU, dan menyimpan hasilnya ke `laporan/eda_ringkasan.json`.
+**EDA.** `01_eda_dataset.ipynb` mencari zip dataset di tiga lokasi, Google Drive
+di `MyDrive/capstone4/`, direktori kerja, dan folder `pilihan dataset dan aturan`.
+Tidak butuh GPU. Hasilnya disimpan ke `laporan/eda_ringkasan.json`.
+
+**Training.** `02_training.ipynb` dijalankan di Colab dengan GPU T4. Unggah zip
+dataset ke `MyDrive/capstone4/` lebih dulu. Keluarannya bobot dan berkas catatan
+versi, keduanya tersimpan ke Drive.
+
+**Aplikasi di komputer sendiri.**
+
+```bash
+python -m venv .venv-uji
+.venv-uji/bin/pip install -r requirements.txt
+.venv-uji/bin/streamlit run app.py
+```
+
+Kalau folder `models/` masih kosong, aplikasi memakai bobot bawaan COCO. Ia
+mengenali orang tapi belum mengenali helm dan rompi, dan aplikasi mengatakannya
+terus terang di layar.
+
+**Uji tanpa menjalankan aplikasi.**
+
+```bash
+.venv-uji/bin/python tests/test_detector.py
+```
 
 ## Susunan berkas
 
 ```
 capstone4-apd-konstruksi/
-├── app.py                  entry point Streamlit          [belum]
+├── app.py                  entry point Streamlit          [jalan]
 ├── requirements.txt        wheel CPU, versi dipin
 ├── packages.txt            pustaka sistem untuk OpenCV
 ├── models/                 bobot terpilih
 ├── src/
-│   ├── detector.py         pemuatan model dan inference   [belum]
+│   ├── detector.py         pemuatan model dan inference   [selesai]
 │   ├── analitik.py         logika analisis, tanpa impor Streamlit  [belum]
 │   └── tampilan.py         komponen UI                    [belum]
-├── tests/                  unit test logika analisis       [belum]
+├── tests/
+│   └── test_detector.py    empat uji asap, semuanya lolos  [selesai]
 ├── notebooks/
-│   └── 01_eda_dataset.ipynb  lima pemeriksaan data       [selesai]
+│   ├── 01_eda_dataset.ipynb  lima pemeriksaan data       [selesai]
+│   └── 02_training.ipynb     training baseline           [siap]
 ├── contoh_gambar/          tiga gambar untuk demo video    [belum]
 └── laporan/
     └── eda_ringkasan.json  angka EDA, dikutip README      [selesai]
@@ -187,11 +222,33 @@ logikanya bisa diuji tanpa GPU dan tanpa menjalankan aplikasi.
 
 ## Catatan versi
 
-`requirements.txt` memakai wheel CPU. Versi `ultralytics` di situ **wajib sama
-persis** dengan yang dipakai saat training di Colab, karena file bobot menyimpan
-referensi ke kelas Python di dalam library.
+`requirements.txt` diuji hari 3 di virtualenv bersih, bukan diasumsikan.
 
-`[belum]` Versi hasil training pertama dicatat di sini setelah hari 3.
+| Paket | Versi | Alasan |
+|---|---|---|
+| torch | 2.8.0 | sama dengan versi di Colab, punya wheel CPU untuk Python 3.11 sampai 3.13 |
+| torchvision | 0.23.0 | pasangan torch 2.8.0 |
+| ultralytics | 8.3.217 | wajib sama dengan versi saat training, berkas bobot menyimpan referensi kelas Python |
+| streamlit | 1.40.0 | |
+| pillow | 11.0.0 | |
+| pandas | 2.2.3 | |
+
+Diverifikasi pada Python 3.13.9, torch tanpa CUDA build, ukuran virtualenv 1,3 GB.
+
+**Versi pertama yang saya tulis hari 1 gagal dipasang.** `torch==2.5.1` tidak
+punya wheel untuk Python 3.13. Kalau tidak diuji sampai hari terakhir, itu yang
+akan mematikan deploy. Ini persis alasan uji deploy dijadwalkan di hari 3, bukan
+di akhir.
+
+### Dua jebakan lingkungan yang sudah ditutup
+
+`YOLO_CONFIG_DIR` **dibuat dulu** sebelum dipakai. Ultralytics tidak membuatnya
+sendiri, ia hanya memberi peringatan lalu diam-diam menulis ke lokasi lain.
+
+`YOLO_OFFLINE=1` sudah diuji **tidak** memblokir unduhan bobot, jadi model bawaan
+tetap bisa diambil saat pertama dijalankan. Unduhannya diarahkan ke direktori
+sementara yang pasti bisa ditulis, bukan ke direktori kerja yang belum tentu
+punya izin tulis di server hosting.
 
 ## Kredensial
 

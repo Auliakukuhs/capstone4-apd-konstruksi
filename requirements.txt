@@ -1,14 +1,16 @@
 # Wheel CPU. Tanpa baris ini pip menarik PyTorch versi CUDA beberapa gigabyte
-# dan build di Streamlit Community Cloud gagal.
+# dan build di Streamlit Community Cloud gagal atau kehabisan kuota.
 --extra-index-url https://download.pytorch.org/whl/cpu
 
-torch==2.5.1
-torchvision==0.20.1
+# torch 2.8.0 dipilih karena sama dengan versi di Google Colab tempat model
+# dilatih, dan punya wheel CPU untuk Python 3.11 sampai 3.13.
+torch==2.8.0
+torchvision==0.23.0
+
+# Versi ultralytics WAJIB sama dengan yang dipakai saat training, karena berkas
+# bobot menyimpan referensi ke kelas Python di dalam library.
 ultralytics==8.3.217
+
 streamlit==1.40.0
 pillow==11.0.0
-numpy<2.2
 pandas==2.2.3
-
-# Versi ultralytics WAJIB sama dengan yang dipakai saat training di Colab.
-# Dikonfirmasi ulang setelah training pertama, lihat catatan di README.

@@ -1,0 +1,71 @@
+{
+  "dataset": "construction safety.v1i.yolov12",
+  "gambar": {
+    "train": 997,
+    "valid": 119,
+    "test": 90
+  },
+  "bounding_box": {
+    "train": 6386,
+    "valid": 715,
+    "test": 623
+  },
+  "kelas": [
+    "helmet",
+    "no-helmet",
+    "no-vest",
+    "person",
+    "vest"
+  ],
+  "indeks_person": 3,
+  "distribusi_kelas": {
+    "helmet": 2543,
+    "no-helmet": 129,
+    "no-vest": 892,
+    "person": 2817,
+    "vest": 1343
+  },
+  "kelas_terlangka": "no-helmet",
+  "instance_valid_terlangka": 11,
+  "integritas": {
+    "baris_bermasalah": 0,
+    "berkas_rusak": 0,
+    "label_kosong": 0
+  },
+  "leakage": {
+    "id_lintas_split": 0,
+    "md5_lintas_split": 0
+  },
+  "objek_per_gambar": {
+    "rata_rata": 6.41,
+    "maksimum": 39
+  },
+  "small_object_persen": {
+    "helmet": {
+      "imgsz640": 32.6,
+      "imgsz960": 14.1
+    },
+    "no-helmet": {
+      "imgsz640": 47.9,
+      "imgsz960": 17.0
+    },
+    "no-vest": {
+      "imgsz640": 7.7,
+      "imgsz960": 4.9
+    },
+    "person": {
+      "imgsz640": 5.1,
+      "imgsz960": 1.3
+    },
+    "vest": {
+      "imgsz640": 5.8,
+      "imgsz960": 1.2
+    }
+  },
+  "kualitas_gambar": {
+    "gelap": 24,
+    "terang": 68,
+    "datar": 3,
+    "megapiksel_maks": 30.4
+  }
+}

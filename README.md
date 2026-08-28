@@ -3,8 +3,8 @@
 Capstone Project Module 4, Purwadhika Digital Technology School.
 Object detection untuk memeriksa kelengkapan alat pelindung diri di lokasi konstruksi.
 
-> Status pengerjaan: **hari 1 dari 15**. Berkas ini masih kerangka. Bagian yang
-> ditandai `[belum]` diisi sesuai urutan di `../catatan/URUTAN-KERJA.md`.
+> Status pengerjaan: **hari 2 dari 15**. Bagian yang ditandai `[belum]` diisi
+> sesuai urutan di `../catatan/URUTAN-KERJA.md`.
 
 ## 1. Masalah yang diselesaikan
 
@@ -39,8 +39,58 @@ script-nya di `../catatan/98-eda-dataset.md`.
 
 ## 3. Pipeline data processing
 
-`[belum]` Hari 2. Lima pemeriksaan wajib, integritas label, kebersihan split,
-distribusi kelas, distribusi ukuran objek, dan kualitas gambar.
+Notebook `notebooks/01_eda_dataset.ipynb` menjalankan lima pemeriksaan sebelum
+satu baris pun kode training ditulis. Angka ringkasnya tersimpan di
+`laporan/eda_ringkasan.json` supaya laporan dan notebook selalu mengutip sumber
+yang sama.
+
+| # | Pemeriksaan | Hasil |
+|---|---|---|
+| 1 | Integritas label | **bersih**, 7.724 baris, nol bermasalah, nol berkas rusak |
+| 2 | Kebersihan split | **bersih**, nol id lintas split, nol berkas md5 identik |
+| 3 | Distribusi kelas | timpang berat, `no-helmet` hanya 1,7 persen |
+| 4 | Ukuran objek | 68,7 persen `helmet` di bawah 2 persen luas gambar |
+| 5 | Kualitas gambar | 7,6 persen menyimpang pencahayaannya, tidak ada berkas rusak |
+
+### Distribusi kelas
+
+| Kelas | train | valid | test | total | porsi |
+|---|---|---|---|---|---|
+| person | 2.362 | 241 | 214 | 2.817 | 36,5% |
+| helmet | 2.116 | 232 | 195 | 2.543 | 32,9% |
+| vest | 1.073 | 141 | 129 | 1.343 | 17,4% |
+| no-vest | 741 | 90 | 61 | 892 | 11,5% |
+| **no-helmet** | 94 | **11** | 24 | 129 | **1,7%** |
+
+### Ukuran objek dan pemilihan resolusi
+
+Materi menyatakan object detection paling andal untuk objek yang menutupi 2
+sampai 60 persen luas gambar. Porsi objek yang berada di bawah 32 piksel setelah
+letterbox, yaitu definisi objek small pada metrik COCO.
+
+| Kelas | imgsz 640 | imgsz 960 |
+|---|---|---|
+| no-helmet | 47,9% | 17,0% |
+| helmet | 32,6% | 14,1% |
+| no-vest | 7,7% | 4,9% |
+| vest | 5,8% | 1,2% |
+| person | 5,1% | 1,3% |
+
+Karena itu `imgsz` diperlakukan sebagai variabel eksperimen, bukan angka yang
+ditetapkan di muka. Baseline 640, pembanding 960.
+
+### Keputusan preprocessing
+
+**Tidak memakai CLAHE sebagai preprocessing tetap**, meski 7,6 persen gambar
+menyimpang pencahayaannya. Dua alasan. Kondisinya bervariasi, bukan seragam. Dan
+preprocessing tetap harus diterapkan juga saat inference, yang menambah satu
+langkah yang bisa lupa dilakukan.
+
+Sebagai gantinya augmentasi `hsv_v` dipertahankan, supaya model terbiasa dengan
+variasi pencahayaan tanpa ada yang perlu diingat saat inference.
+
+**Tidak menormalkan piksel secara manual.** Ultralytics sudah melakukannya di
+dalam, dan menormalkan dua kali merusak input.
 
 ## 4. Model
 
@@ -87,6 +137,14 @@ dilaporkan terpisah di test set.
 dari 2 persen luas gambar, di bawah rentang 2 sampai 60 persen yang disebut
 materi sebagai wilayah andal object detection.
 
+**Gambarnya padat.** Rata-rata 6,41 objek per gambar dengan maksimum 39, dan
+pekerja sering berhimpitan. Ini akan menyulitkan asosiasi atribut ke pekerja
+tertentu di lapisan analisis.
+
+**Ukuran gambar sangat beragam.** Rasio aspek 0,45 sampai 3,75 dan ukuran 0,02
+sampai 30,4 megapiksel. Aplikasi wajib membatasi ukuran unggahan sebelum masuk
+model, karena gambar 30 megapiksel bisa mematikan server gratis.
+
 `[belum]` Keterbatasan lain yang muncul setelah evaluasi.
 
 ## 8. Cara menjalankan ulang
@@ -94,11 +152,15 @@ materi sebagai wilayah andal object detection.
 `[belum]` Diisi setelah aplikasinya jadi.
 
 ```
-notebooks/01_eda_dataset.ipynb     pemeriksaan data
-notebooks/02_training.ipynb        training di Google Colab
-notebooks/03_evaluasi.ipynb        evaluasi dan tabel eksperimen
-app.py                             aplikasi Streamlit
+notebooks/01_eda_dataset.ipynb     pemeriksaan data          [selesai]
+notebooks/02_training.ipynb        training di Google Colab  [belum]
+notebooks/03_evaluasi.ipynb        evaluasi dan eksperimen   [belum]
+app.py                             aplikasi Streamlit        [belum]
 ```
+
+`01_eda_dataset.ipynb` mencari zip dataset di tiga lokasi, Google Drive di
+`MyDrive/capstone4/`, direktori kerja, dan folder `pilihan dataset dan aturan`.
+Tidak butuh GPU, dan menyimpan hasilnya ke `laporan/eda_ringkasan.json`.
 
 ## Susunan berkas
 
@@ -113,9 +175,11 @@ capstone4-apd-konstruksi/
 │   ├── analitik.py         logika analisis, tanpa impor Streamlit  [belum]
 │   └── tampilan.py         komponen UI                    [belum]
 ├── tests/                  unit test logika analisis       [belum]
-├── notebooks/              EDA, training, evaluasi         [belum]
+├── notebooks/
+│   └── 01_eda_dataset.ipynb  lima pemeriksaan data       [selesai]
 ├── contoh_gambar/          tiga gambar untuk demo video    [belum]
-└── laporan/                grafik hasil training           [belum]
+└── laporan/
+    └── eda_ringkasan.json  angka EDA, dikutip README      [selesai]
 ```
 
 `src/analitik.py` sengaja tidak mengimpor Streamlit maupun Ultralytics, supaya

@@ -1,0 +1,24 @@
+# Lingkungan
+.venv/
+.venv-uji/
+__pycache__/
+*.pyc
+.python-version
+
+# Hasil training, tidak ikut repo karena besar dan bisa dihasilkan ulang
+runs/
+runs_capstone/
+datasets/
+*.zip
+
+# Bobot model, KECUALI yang dipakai aplikasi
+*.pt
+!models/*.pt
+
+# Kredensial, tidak pernah masuk repo
+.streamlit/secrets.toml
+.env
+
+# Sistem
+.DS_Store
+.ipynb_checkpoints/

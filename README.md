@@ -320,6 +320,34 @@ atas diambil dari keluaran notebook, bukan dari perkiraan.
 Keduanya jenis kegagalan yang tidak berbunyi sampai deploy. Itu alasan uji
 pasang dijadwalkan hari 3, bukan di akhir.
 
+### Nama paket sistem, dan kenapa `libglib2.0-0` gagal
+
+Deploy pertama gagal di `packages.txt`, bukan di Python.
+
+```
+libglib2.0-0 : Depends: libffi7 but it is not installable
+               Depends: libpcre3 but it is not installable
+E: Unable to correct problems, you have held broken packages
+```
+
+Image Streamlit Community Cloud memakai **Debian 13 trixie**. Di sana
+`libglib2.0-0` sudah tidak punya versi kandidat, hanya tersisa sebagai nama
+virtual, sisa transisi time_t 64-bit. Sumber apt di image itu masih memuat entri
+bullseye yang tertinggal, jadi apt mengambil versi bullseye 2.66.8 yang
+membutuhkan `libffi7` dan `libpcre3`, dan keduanya tidak ada di trixie.
+
+Nama yang benar `libglib2.0-0t64`. Diverifikasi di container `debian:trixie`,
+bukan ditebak.
+
+| Paket | Trixie | Keterangan |
+|---|---|---|
+| `libgl1` | 1.7.0-1+b2 | ada, menyediakan `libGL.so.1` |
+| `libglib2.0-0` | **tidak ada kandidat** | nama virtual saja |
+| `libglib2.0-0t64` | 2.84.4-3~deb13u3 | ini yang dipakai |
+
+Glib tidak bisa dihilangkan begitu saja. Tanpa ia, `import cv2` gagal dengan
+`libgthread-2.0.so.0: cannot open shared object file`, juga sudah diuji.
+
 ### Dua jebakan lingkungan yang sudah ditutup
 
 `YOLO_CONFIG_DIR` **dibuat dulu** sebelum dipakai. Ultralytics tidak membuatnya

@@ -2,16 +2,21 @@
 # dan build di Streamlit Community Cloud gagal atau kehabisan kuota.
 --extra-index-url https://download.pytorch.org/whl/cpu
 
-# Disamakan dengan lingkungan Colab tempat model dilatih pada 29 Agustus 2026.
-# Angka ini BUKAN tebakan, diambil dari keluaran notebook 02_training.ipynb.
+# DIPIN KETAT, karena berkas bobot menyimpan referensi ke kelas Python di dalam
+# library. Angka ini diambil dari keluaran notebook 02_training.ipynb di Colab,
+# bukan tebakan. Keduanya punya wheel untuk Python 3.11 sampai 3.14.
 torch==2.11.0
 torchvision==0.26.0
-
-# Versi ultralytics WAJIB sama dengan yang dipakai saat training, karena berkas
-# bobot menyimpan referensi ke kelas Python di dalam library. Colab memasang
-# 8.4.138, bukan 8.3.217 yang semula ditulis di sini.
 ultralytics==8.4.138
 
-streamlit==1.40.0
-pillow==11.0.0
-pandas==2.2.3
+# DIPIN LONGGAR dengan sengaja. Streamlit Community Cloud memilih sendiri versi
+# Python-nya dan bisa mengubahnya kapan saja, saat ini 3.14. Memin pillow ke
+# 11.0.0 membuat build gagal, karena versi itu tidak punya wheel untuk 3.14
+# sehingga pip mencoba mengompilasinya dari sumber lalu berhenti di header zlib
+# yang tidak ada. Batas bawah dijaga, versi tepatnya diserahkan ke resolver.
+streamlit>=1.40,<2
+pillow>=11.0
+
+# pandas tidak dicantumkan. Ia tidak dipakai langsung oleh kode ini, hanya
+# ditarik streamlit, dan mencantumkannya dengan versi tetap menimbulkan
+# kegagalan yang sama seperti pillow.

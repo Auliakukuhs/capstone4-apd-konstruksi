@@ -6,8 +6,8 @@ Object detection untuk memeriksa kelengkapan alat pelindung diri di lokasi konst
 > Status pengerjaan: **hari 3 dari 15**. Bagian yang ditandai `[belum]` diisi
 > sesuai urutan di `../catatan/URUTAN-KERJA.md`.
 >
-> Baseline sudah dilatih. Angkanya seadanya dan memang begitu rencananya,
-> pengejaran mAP dikerjakan hari 8 sampai 10.
+> Baseline sudah dilatih dan bobotnya sudah dipakai aplikasi. Angkanya seadanya
+> dan memang begitu rencananya, pengejaran mAP dikerjakan hari 8 sampai 10.
 
 ## 1. Masalah yang diselesaikan
 
@@ -182,14 +182,21 @@ untuk objek sekecil helm.
 
 ### Kecepatan
 
-Diukur di Tesla T4, bukan di perangkat tempat aplikasi berjalan.
+Dua perangkat, dua angka, karena angka tanpa konteks tidak berarti apa pun.
 
-```
-preprocess 1.9 ms · inference 15.8 ms · postprocess 3.9 ms
-```
+| Perangkat | Per gambar |
+|---|---|
+| Tesla T4, Colab | preprocess 1,9 ms, inference 15,8 ms, postprocess 3,9 ms |
+| CPU laptop, satu thread torch | median **23 ms**, rentang 20 sampai 31 ms |
 
-Angka di CPU akan jauh lebih lambat dan dilaporkan terpisah setelah aplikasi
-berjalan di Streamlit Cloud.
+**Panggilan pertama 979 ms**, hampir empat puluh kali median. Itu lazy init
+PyTorch, terjadi sekali per proses, dan bukan cacat. Tapi ia punya akibat nyata
+di aplikasi. Unggahan pertama setelah aplikasi bangun dari tidur akan terasa
+lambat, sedangkan unggahan berikutnya seketika.
+
+Angka median diambil setelah tiga kali pemanasan. Mengukur tanpa membuang
+panggilan pertama menghasilkan rata-rata 508 ms, dan itu menggambarkan lazy
+init, bukan kecepatan modelnya.
 
 ## 6. Lapisan analisis
 
@@ -250,9 +257,8 @@ python -m venv .venv-uji
 .venv-uji/bin/streamlit run app.py
 ```
 
-Kalau folder `models/` masih kosong, aplikasi memakai bobot bawaan COCO. Ia
-mengenali orang tapi belum mengenali helm dan rompi, dan aplikasi mengatakannya
-terus terang di layar.
+Aplikasi memakai bobot di `models/`. Kalau folder itu kosong, ia jatuh ke bobot
+bawaan COCO yang hanya mengenali orang, dan mengatakannya terus terang di layar.
 
 **Uji tanpa menjalankan aplikasi.**
 
@@ -267,7 +273,8 @@ capstone4-apd-konstruksi/
 ├── app.py                  entry point Streamlit          [jalan]
 ├── requirements.txt        wheel CPU, versi dipin
 ├── packages.txt            pustaka sistem untuk OpenCV
-├── models/                 bobot terpilih
+├── models/
+│   └── apd_v1_baseline_640.pt  5,47 MB          [selesai]
 ├── src/
 │   ├── detector.py         pemuatan model dan inference   [selesai]
 │   ├── analitik.py         logika analisis, tanpa impor Streamlit  [belum]
@@ -276,7 +283,7 @@ capstone4-apd-konstruksi/
 │   └── test_detector.py    empat uji asap, semuanya lolos  [selesai]
 ├── notebooks/
 │   ├── 01_eda_dataset.ipynb  lima pemeriksaan data       [selesai]
-│   └── 02_training.ipynb     training baseline           [siap]
+│   └── 02_training.ipynb     training baseline, berisi output  [selesai]
 ├── contoh_gambar/          tiga gambar untuk demo video    [belum]
 └── laporan/
     └── eda_ringkasan.json  angka EDA, dikutip README      [selesai]

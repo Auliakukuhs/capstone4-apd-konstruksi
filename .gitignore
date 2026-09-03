@@ -22,3 +22,7 @@ datasets/
 # Sistem
 .DS_Store
 .ipynb_checkpoints/
+
+# Dataset yang diekstrak notebook, bisa dihasilkan ulang dari zip
+notebooks/dataset/
+dataset/

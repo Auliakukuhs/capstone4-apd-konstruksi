@@ -1,16 +1,2 @@
-# Pustaka sistem yang dibutuhkan opencv-python, yang ditarik ultralytics.
-#
-# NAMA PAKET GLIB PENTING. Image Streamlit Community Cloud memakai Debian 13
-# trixie, dan di sana `libglib2.0-0` sudah TIDAK punya versi kandidat, hanya
-# tersisa sebagai nama virtual. Sumber apt di image itu masih memuat entri
-# bullseye yang tertinggal, jadi apt mengambil versi bullseye 2.66.8 yang
-# membutuhkan libffi7 dan libpcre3, dan keduanya tidak ada di trixie. Build
-# gagal dengan pesan "held broken packages".
-#
-# Nama yang benar di trixie adalah libglib2.0-0t64, hasil transisi time_t
-# 64-bit. Diverifikasi di container debian:trixie, bukan ditebak.
-#
-# Glib TIDAK bisa dihilangkan. Tanpa ia, `import cv2` gagal dengan
-# "libgthread-2.0.so.0: cannot open shared object file", juga sudah diuji.
 libgl1
 libglib2.0-0t64

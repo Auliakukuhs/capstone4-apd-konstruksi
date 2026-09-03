@@ -1,0 +1,30 @@
+{
+  "run": "v1_baseline_640",
+  "model_awal": "yolo11n.pt",
+  "imgsz": 640,
+  "epochs": 30,
+  "epochs_berjalan": 27,
+  "epoch_terbaik": 17,
+  "berhenti": "early stopping, patience 10",
+  "waktu_training_menit": 10.6,
+  "batch": 16,
+  "seed": 0,
+  "ultralytics": "8.4.138",
+  "torch": "2.11.0+cu128",
+  "python": "3.13.15",
+  "gpu": "Tesla T4",
+  "ukuran_bobot_mb": 5.47,
+  "split_dilaporkan": "test",
+  "conf_evaluasi": 0.001,
+  "map50": 0.7224,
+  "map50_95": 0.3704,
+  "per_kelas": {
+    "helmet":    {"P": 0.8671, "R": 0.8367, "mAP50": 0.8763, "mAP50_95": 0.4335},
+    "no-helmet": {"P": 0.7926, "R": 0.3333, "mAP50": 0.4209, "mAP50_95": 0.1821},
+    "no-vest":   {"P": 0.7311, "R": 0.6066, "mAP50": 0.6523, "mAP50_95": 0.3131},
+    "person":    {"P": 0.8650, "R": 0.8551, "mAP50": 0.8479, "mAP50_95": 0.5083},
+    "vest":      {"P": 0.8580, "R": 0.6556, "mAP50": 0.8147, "mAP50_95": 0.4150}
+  },
+  "kecepatan_t4_ms": {"preprocess": 1.9, "inference": 15.8, "postprocess": 3.9},
+  "augmentasi_geometris_mati": true
+}

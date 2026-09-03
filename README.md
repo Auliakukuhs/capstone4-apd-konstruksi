@@ -6,9 +6,8 @@ Object detection untuk memeriksa kelengkapan alat pelindung diri di lokasi konst
 > Status pengerjaan: **hari 3 dari 15**. Bagian yang ditandai `[belum]` diisi
 > sesuai urutan di `../catatan/URUTAN-KERJA.md`.
 >
-> Aplikasi sudah berjalan, tapi masih memakai bobot bawaan COCO karena training
-> belum dijalankan. Itu disengaja. Tujuan hari 3 membuktikan jalur dari kode
-> sampai link publik tembus, bukan menghasilkan model terbaik.
+> Baseline sudah dilatih. Angkanya seadanya dan memang begitu rencananya,
+> pengejaran mAP dikerjakan hari 8 sampai 10.
 
 ## 1. Masalah yang diselesaikan
 
@@ -103,9 +102,30 @@ melatih baseline 30 epoch pada `imgsz` 640, memverifikasi bahwa augmentasi
 geometris benar-benar mati lewat `args.yaml`, mengevaluasi di test set dengan
 `conf=0.001`, lalu menyimpan bobot dan catatan versinya ke Drive.
 
-`[belum]` Hasil training. Menunggu notebook dijalankan di Colab.
+Baseline `v1_baseline_640` dilatih 29 Agustus 2026 di Colab dengan Tesla T4.
+Berhenti sendiri di epoch 27 karena early stopping, hasil terbaik di epoch 17,
+total 10,6 menit. Catatan lengkapnya di `laporan/v1_baseline_640_catatan.json`.
 
-`[belum]` Tabel eksperimen hari 8 sampai 10.
+### Rencana eksperimen hari 8 sampai 10, direvisi setelah baseline
+
+Rencana semula menaruh "naikkan epoch" sebagai eksperimen pertama. **Itu sudah
+terbantah oleh baselinenya sendiri.** Early stopping menyala di epoch 27 dengan
+hasil terbaik di epoch 17, artinya model sudah berhenti membaik jauh sebelum
+batas 30 epoch tercapai. Menaikkan epoch saja hampir pasti tidak menolong.
+
+Urutannya diganti, dari yang paling ditopang bukti.
+
+| Run | Yang diubah | Kenapa |
+|---|---|---|
+| v1_baseline_640 | baseline, geometris mati | sudah ada |
+| v2_imgsz960 | resolusi 640 ke 960 | EDA menunjukkan 32,6 persen helmet dan 47,9 persen no-helmet di bawah 32 piksel pada 640. Ini yang paling mungkin mengangkat dua kelas terlemah |
+| v3_copypaste | penanganan `no-helmet` | recall 0,333 dari 24 instance. Copy-paste augmentation menyerang persis kelas ini |
+| v4_varian_s | nano ke small | terakhir, karena paling mahal dan paling jarang jadi akar masalah |
+| v5_dengan_mosaic | pembanding, mosaic dinyalakan | mengukur berapa mAP yang dikorbankan demi patuh pada SOAL |
+
+`patience` juga dinaikkan dari 10 ke 20 pada v2 dan seterusnya. Dengan resolusi
+lebih tinggi, model butuh lebih banyak epoch sebelum mendatar, dan patience 10
+berisiko menghentikannya terlalu cepat.
 
 ### Keputusan yang sudah diambil
 
@@ -123,8 +143,53 @@ dataset kecil. Penurunan itu diterima demi kepatuhan pada instruksi.
 
 ## 5. Hasil
 
-`[belum]` Hari 11. mAP@0.5 dan mAP@0.5:0.95 di test set, tabel per kelas,
-confusion matrix, kurva PR, dan speed metrics.
+Baseline `v1_baseline_640`, dievaluasi di **test set** dengan `conf=0.001`.
+Bukan di validation, karena validation dipakai memilih checkpoint sehingga
+angkanya sudah menyesuaikan diri.
+
+| | mAP@0.5 | mAP@0.5:0.95 |
+|---|---|---|
+| Keseluruhan | **0,722** | **0,370** |
+
+### Per kelas
+
+| Kelas | Instance | P | R | mAP50 | mAP50-95 | Ketemu | Terlewat |
+|---|---|---|---|---|---|---|---|
+| helmet | 195 | 0,867 | 0,837 | 0,876 | 0,434 | 163 | 32 |
+| person | 214 | 0,865 | 0,855 | 0,848 | 0,508 | 183 | 31 |
+| vest | 129 | 0,858 | 0,656 | 0,815 | 0,415 | 85 | 44 |
+| no-vest | 61 | 0,731 | 0,607 | 0,652 | 0,313 | 37 | 24 |
+| **no-helmet** | **24** | 0,793 | **0,333** | **0,421** | 0,182 | **8** | **16** |
+
+### Tiga hal yang dikatakan angka ini
+
+**Ramalan dari EDA terbukti persis.** `no-helmet` jadi kelas terburuk dengan
+recall 0,333. Dari 24 pelanggaran helm di test set, model hanya menemukan 8 dan
+melewatkan 16. Ini sudah diperkirakan sejak hari 2, karena kelas itu hanya punya
+94 instance latih. Angkanya sendiri rapuh, 24 instance berarti satu deteksi
+menggeser recall sekitar 4 poin persen.
+
+**Model terlalu berhati-hati, dan itu arah yang salah untuk keselamatan.**
+Rata-rata precision 0,823 sementara recall 0,658, selisih 16,5 poin. Artinya
+model lebih sering melewatkan objek nyata daripada mengarang objek palsu. Untuk
+sistem yang memeriksa keselamatan kerja, melewatkan pelanggaran jauh lebih mahal
+daripada alarm palsu. Confidence threshold aplikasi perlu digeser ke bawah, dan
+angkanya diambil dari kurva F1, bukan dari nilai bawaan 0,25.
+
+**Kotaknya ketemu tapi kurang rapat.** mAP@0.5 0,722 berbanding mAP@0.5:0.95
+0,370, selisihnya besar. Itu masalah lokalisasi, bukan pengenalan, dan wajar
+untuk objek sekecil helm.
+
+### Kecepatan
+
+Diukur di Tesla T4, bukan di perangkat tempat aplikasi berjalan.
+
+```
+preprocess 1.9 ms · inference 15.8 ms · postprocess 3.9 ms
+```
+
+Angka di CPU akan jauh lebih lambat dan dilaporkan terpisah setelah aplikasi
+berjalan di Streamlit Cloud.
 
 ## 6. Lapisan analisis
 
@@ -226,19 +291,27 @@ logikanya bisa diuji tanpa GPU dan tanpa menjalankan aplikasi.
 
 | Paket | Versi | Alasan |
 |---|---|---|
-| torch | 2.8.0 | sama dengan versi di Colab, punya wheel CPU untuk Python 3.11 sampai 3.13 |
-| torchvision | 0.23.0 | pasangan torch 2.8.0 |
-| ultralytics | 8.3.217 | wajib sama dengan versi saat training, berkas bobot menyimpan referensi kelas Python |
+| torch | 2.11.0 | sama dengan versi di Colab |
+| torchvision | 0.26.0 | pasangan torch 2.11.0 |
+| ultralytics | 8.4.138 | wajib sama dengan versi saat training, berkas bobot menyimpan referensi kelas Python |
 | streamlit | 1.40.0 | |
 | pillow | 11.0.0 | |
 | pandas | 2.2.3 | |
 
 Diverifikasi pada Python 3.13.9, torch tanpa CUDA build, ukuran virtualenv 1,3 GB.
 
-**Versi pertama yang saya tulis hari 1 gagal dipasang.** `torch==2.5.1` tidak
-punya wheel untuk Python 3.13. Kalau tidak diuji sampai hari terakhir, itu yang
-akan mematikan deploy. Ini persis alasan uji deploy dijadwalkan di hari 3, bukan
-di akhir.
+### Dua kali salah pin, dua kali ketahuan sebelum deploy
+
+**Hari 1.** `torch==2.5.1` tidak punya wheel untuk Python 3.13, install gagal
+total.
+
+**Hari 3, setelah training.** Colab ternyata memasang `ultralytics 8.4.138` dan
+`torch 2.11.0`, bukan 8.3.217 dan 2.8.0 yang saya tulis. Berkas bobot dibuat
+oleh 8.4.138, jadi pin lama berisiko gagal memuatnya di aplikasi. Angka di tabel
+atas diambil dari keluaran notebook, bukan dari perkiraan.
+
+Keduanya jenis kegagalan yang tidak berbunyi sampai deploy. Itu alasan uji
+pasang dijadwalkan hari 3, bukan di akhir.
 
 ### Dua jebakan lingkungan yang sudah ditutup
 

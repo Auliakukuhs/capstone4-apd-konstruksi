@@ -2,14 +2,15 @@
 # dan build di Streamlit Community Cloud gagal atau kehabisan kuota.
 --extra-index-url https://download.pytorch.org/whl/cpu
 
-# torch 2.8.0 dipilih karena sama dengan versi di Google Colab tempat model
-# dilatih, dan punya wheel CPU untuk Python 3.11 sampai 3.13.
-torch==2.8.0
-torchvision==0.23.0
+# Disamakan dengan lingkungan Colab tempat model dilatih pada 29 Agustus 2026.
+# Angka ini BUKAN tebakan, diambil dari keluaran notebook 02_training.ipynb.
+torch==2.11.0
+torchvision==0.26.0
 
 # Versi ultralytics WAJIB sama dengan yang dipakai saat training, karena berkas
-# bobot menyimpan referensi ke kelas Python di dalam library.
-ultralytics==8.3.217
+# bobot menyimpan referensi ke kelas Python di dalam library. Colab memasang
+# 8.4.138, bukan 8.3.217 yang semula ditulis di sini.
+ultralytics==8.4.138
 
 streamlit==1.40.0
 pillow==11.0.0

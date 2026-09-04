@@ -301,7 +301,7 @@ logikanya bisa diuji tanpa GPU dan tanpa menjalankan aplikasi.
 | torch | `==2.11.0` | sama dengan versi di Colab |
 | torchvision | `==0.26.0` | pasangan torch 2.11.0 |
 | ultralytics | `==8.4.138` | **wajib sama** dengan versi saat training, berkas bobot menyimpan referensi kelas Python |
-| streamlit | `>=1.40,<2` | longgar, tidak menentukan kompatibilitas bobot |
+| streamlit | `==1.63.0` | ketat, verifikasi `AppTest` menjalankan `app.py` sampai selesai di Python 3.14 |
 | pillow | `>=11.0` | longgar, lihat alasannya di bawah |
 | pandas | tidak dicantumkan | tidak dipakai langsung, hanya ditarik streamlit |
 
@@ -310,18 +310,46 @@ logikanya bisa diuji tanpa GPU dan tanpa menjalankan aplikasi.
 Yang menentukan apakah berkas bobot bisa dimuat cuma `ultralytics`, dan lewat ia
 `torch`. Ketiganya dipin ketat.
 
-Sisanya sengaja longgar, karena **Streamlit Community Cloud memilih sendiri
-versi Python-nya dan bisa mengubahnya kapan saja**. Saat ini 3.14.7. Memin
-`pillow==11.0.0` membuat build gagal, sebab versi itu tidak punya wheel untuk
-3.14 sehingga pip mencoba mengompilasinya dari sumber lalu berhenti.
+Streamlit juga dipin ketat, tapi alasannya berbeda. Ia pure Python sehingga
+wheel-nya universal dan tidak pernah kena masalah yang menjatuhkan pillow. Yang
+dijaga permukaan API-nya, yang berubah antar versi minor.
+
+**Hanya `pillow` yang dilonggarkan**, karena Streamlit Community Cloud memilih
+sendiri versi Python-nya dan bisa mengubahnya kapan saja. Saat ini 3.14.7.
+Memin `pillow==11.0.0` membuat build gagal, sebab versi itu tidak punya wheel
+untuk 3.14 sehingga pip mencoba mengompilasinya dari sumber lalu berhenti.
 
 ```
 The headers or library files could not be found for zlib,
 a required dependency when compiling Pillow from source.
 ```
 
-Dengan batas bawah saja, resolver memilih pillow 11.3.0 dan pandas 2.3.3 yang
-punya wheel `cp314`. Diverifikasi di container `python:3.14-slim`.
+Dengan batas bawah saja, resolver memilih pillow yang punya wheel `cp314`.
+
+### Cara memutuskan mana yang dipin dan mana yang tidak
+
+| Kelompok | Perlakuan | Alasan |
+|---|---|---|
+| `ultralytics`, `torch`, `torchvision` | ketat | menentukan apakah berkas bobot bisa dimuat |
+| `streamlit` | ketat | permukaan API berubah antar versi minor, dan pure Python jadi tidak ada risiko wheel |
+| `pillow` | longgar | punya ekstensi C, wheel-nya tergantung versi Python yang dipilih Cloud |
+| `pandas` | tidak dicantumkan | tidak dipakai langsung |
+
+Yang dilonggarkan hanya yang **terbukti** rusak kalau dipin. Melonggarkan
+semuanya sekaligus pernah saya coba dan itu keliru, streamlit ikut melompat dari
+1.40 ke 1.63, dua puluh tiga versi minor, menyeret pandas dan pillow ikut
+berubah tanpa alasan.
+
+### Yang diverifikasi di container, bukan diasumsikan
+
+| Uji | Hasil |
+|---|---|
+| `apt-get install libgl1 libglib2.0-0t64` di `debian:trixie` | berhasil, `libGL.so.1` dan `libgthread-2.0.so.0` ada |
+| `pip install -r requirements.txt` di Python 3.14.7 | berhasil |
+| `import cv2, torch, ultralytics, streamlit, PIL` | berhasil |
+| `streamlit run app.py` | HTTP 200 |
+| `AppTest.from_file("app.py").run()` | tanpa exception, tanpa peringatan deprecation |
+| `use_container_width` di `st.image` dan `st.dataframe` | masih diterima |
 | streamlit | 1.40.0 | |
 | pillow | 11.0.0 | |
 | pandas | 2.2.3 | |

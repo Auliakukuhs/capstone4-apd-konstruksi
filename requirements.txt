@@ -9,12 +9,19 @@ torch==2.11.0
 torchvision==0.26.0
 ultralytics==8.4.138
 
-# DIPIN LONGGAR dengan sengaja. Streamlit Community Cloud memilih sendiri versi
-# Python-nya dan bisa mengubahnya kapan saja, saat ini 3.14. Memin pillow ke
-# 11.0.0 membuat build gagal, karena versi itu tidak punya wheel untuk 3.14
-# sehingga pip mencoba mengompilasinya dari sumber lalu berhenti di header zlib
-# yang tidak ada. Batas bawah dijaga, versi tepatnya diserahkan ke resolver.
-streamlit>=1.40,<2
+# DIPIN KETAT juga, tapi alasannya berbeda. Streamlit pure Python sehingga
+# wheel-nya universal, jadi ia tidak pernah kena masalah yang menjatuhkan
+# pillow. Yang dijaga di sini permukaan API-nya, yang berubah antar versi minor.
+# 1.63.0 adalah versi yang diverifikasi menjalankan app.py sampai selesai lewat
+# AppTest di Python 3.14, bukan sekadar berhasil diimpor.
+streamlit==1.63.0
+
+# DIPIN LONGGAR dengan sengaja, dan hanya yang ini. Streamlit Community Cloud
+# memilih sendiri versi Python-nya dan bisa mengubahnya kapan saja, saat ini
+# 3.14. Memin pillow ke 11.0.0 membuat build gagal, karena versi itu tidak punya
+# wheel untuk 3.14 sehingga pip mencoba mengompilasinya dari sumber lalu
+# berhenti di header zlib yang tidak ada. API pillow yang dipakai kode ini
+# sangat stabil, jadi membiarkannya bergerak tidak berisiko.
 pillow>=11.0
 
 # pandas tidak dicantumkan. Ia tidak dipakai langsung oleh kode ini, hanya

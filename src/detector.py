@@ -5,6 +5,7 @@ pada daftar dict biasa, supaya logikanya bisa diuji tanpa GPU dan tanpa
 menjalankan aplikasi.
 """
 
+import io
 import os
 import tempfile
 from pathlib import Path
@@ -72,7 +73,15 @@ def muat_model(nama: str) -> YOLO:
 
 
 def siapkan_gambar(sumber) -> Image.Image:
-    """Buka gambar dan batasi ukurannya sebelum masuk model."""
+    """Buka gambar dan batasi ukurannya sebelum masuk model.
+
+    Menerima jalur berkas, objek mirip berkas, maupun bytes mentah. Bentuk
+    bytes dibutuhkan aplikasi, karena isi unggahan itulah yang dipakai sebagai
+    kunci cache inference, dan objek unggahan Streamlit sendiri tidak bisa
+    dipakai sebagai kunci.
+    """
+    if isinstance(sumber, (bytes, bytearray)):
+        sumber = io.BytesIO(sumber)
     gambar = Image.open(sumber).convert("RGB")
     gambar.thumbnail((MAKS_SISI, MAKS_SISI))
     return gambar
@@ -111,3 +120,42 @@ def ke_deteksi(hasil):
             }
         )
     return out
+
+
+def luminansi(gambar: Image.Image) -> float:
+    """Rata-rata kecerahan 0 sampai 255, dipakai memeriksa kualitas unggahan.
+
+    Dihitung lewat konversi ke mode L, yang memakai pembobotan luma ITU-R 601
+    bawaan Pillow, bukan rata-rata tiga kanal RGB yang menyesatkan karena mata
+    manusia jauh lebih peka pada hijau daripada biru.
+    """
+    kelabu = gambar.convert("L")
+    histogram = kelabu.histogram()
+    jumlah_piksel = sum(histogram)
+    if jumlah_piksel == 0:
+        return 0.0
+    return sum(i * n for i, n in enumerate(histogram)) / jumlah_piksel
+
+
+def setarakan_kontras(gambar: Image.Image, klip: float = 2.0, petak: int = 8):
+    """CLAHE pada kanal luminansi saja, warnanya dibiarkan.
+
+    TIDAK dipakai sebagai preprocessing tetap. Alasannya dua. Kondisi
+    pencahayaan dataset ini bervariasi, bukan seragam gelap, sehingga
+    memaksakan penyetaraan pada semua gambar juga merusak yang sudah baik.
+    Dan preprocessing tetap harus diterapkan konsisten saat inference, yang
+    menambah satu langkah yang bisa lupa dilakukan.
+
+    Disediakan sebagai pembanding yang dijalankan pengguna secara sadar, supaya
+    efeknya bisa dilihat berdampingan, bukan diam-diam mengubah masukan model.
+
+    Perhatikan bahwa model dilatih TANPA ini, jadi hasil yang lebih banyak
+    belum tentu hasil yang lebih benar.
+    """
+    import cv2
+    import numpy as np
+
+    lab = cv2.cvtColor(np.asarray(gambar.convert("RGB")), cv2.COLOR_RGB2LAB)
+    alat = cv2.createCLAHE(clipLimit=klip, tileGridSize=(petak, petak))
+    lab[:, :, 0] = alat.apply(lab[:, :, 0])
+    return Image.fromarray(cv2.cvtColor(lab, cv2.COLOR_LAB2RGB))

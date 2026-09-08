@@ -6,6 +6,7 @@ atau langsung:
     .venv-uji/bin/python tests/test_detector.py
 """
 
+import io
 import sys
 from pathlib import Path
 
@@ -18,7 +19,9 @@ from src.detector import (  # noqa: E402
     daftar_model,
     deteksi,
     ke_deteksi,
+    luminansi,
     muat_model,
+    setarakan_kontras,
     siapkan_gambar,
 )
 
@@ -86,6 +89,47 @@ def test_conf_tinggi_menghasilkan_lebih_sedikit():
     rendah, _ = deteksi(model, gambar, conf=0.05, iou=0.7, imgsz=640)
     tinggi, _ = deteksi(model, gambar, conf=0.95, iou=0.7, imgsz=640)
     assert len(tinggi) <= len(rendah)
+
+
+def test_siapkan_gambar_menerima_bytes():
+    """Aplikasi memberi bytes, bukan objek berkas.
+
+    Isi unggahan dipakai sebagai kunci cache inference, karena objek unggahan
+    Streamlit sendiri tidak bisa dipakai sebagai kunci. Jadi jalur bytes bukan
+    kemudahan tambahan, ia jalur yang sebenarnya dipakai di produksi.
+    """
+    buf = io.BytesIO()
+    Image.new("RGB", (80, 60), (10, 120, 200)).save(buf, format="PNG")
+
+    hasil = siapkan_gambar(buf.getvalue())
+    assert hasil.size == (80, 60)
+    assert hasil.mode == "RGB"
+
+
+def test_luminansi_memakai_pembobotan_luma():
+    """Bukan rata-rata tiga kanal RGB, yang menyesatkan.
+
+    Hijau dan biru dengan nilai kanal sama menghasilkan luminansi yang sangat
+    berbeda, karena mata manusia jauh lebih peka pada hijau. Rata-rata polos
+    akan menyatakan keduanya sama terangnya.
+    """
+    assert luminansi(Image.new("RGB", (8, 8), (0, 0, 0))) == 0.0
+    assert luminansi(Image.new("RGB", (8, 8), (255, 255, 255))) == 255.0
+
+    hijau = luminansi(Image.new("RGB", (8, 8), (0, 200, 0)))
+    biru = luminansi(Image.new("RGB", (8, 8), (0, 0, 200)))
+    assert hijau > biru * 3, f"pembobotan luma tidak berlaku, hijau {hijau} biru {biru}"
+
+
+def test_clahe_mempertahankan_bentuk():
+    """Ukuran dan mode harus utuh, karena keluarannya masuk ke model."""
+    asal = Image.new("RGB", (96, 64), (40, 40, 40))
+    hasil = setarakan_kontras(asal)
+    assert hasil.size == asal.size
+    assert hasil.mode == "RGB"
+    assert asal.tobytes() == Image.new("RGB", (96, 64), (40, 40, 40)).tobytes(), (
+        "gambar asal ikut termodifikasi"
+    )
 
 
 if __name__ == "__main__":

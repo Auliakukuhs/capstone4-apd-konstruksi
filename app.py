@@ -1,34 +1,46 @@
 """Sistem Pemeriksaan Kelengkapan APD Pekerja Konstruksi.
 
-Hari 3 dari 15. Versi ini SENGAJA paling sederhana. Unggah gambar, deteksi,
-tampilkan hasil beranotasi dan hitungan per kelas. Tidak ada lagi.
+Aplikasi ini tidak melaporkan berapa helm yang terlihat. Ia melaporkan
+**pekerja mana** yang kelengkapan alat pelindung dirinya belum penuh, dan
+menyertakan angka yang melahirkan vonis itu supaya bisa diperiksa ulang.
 
-Tujuannya membuktikan jalur dari kode sampai link publik tembus hari ini,
-saat masih ada dua belas hari untuk memperbaiki. Lapisan analisis yang menjadi
-inti penilaian dikerjakan hari 4 sampai 7.
+Seluruh perhitungan ada di `src/analitik.py`, seluruh penggambaran di
+`src/tampilan.py`. Berkas ini hanya menyusun urutannya dan mengurus keadaan
+antarmuka.
 
 Menjalankan di lokal:
     streamlit run app.py
 """
 
-import collections
+import io
+import json
 import sys
 from pathlib import Path
 
 import streamlit as st
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(DIR))
 
+from src import tampilan  # noqa: E402
+from src.analitik import Sesi, asosiasi  # noqa: E402
 from src.detector import (  # noqa: E402
     daftar_model,
     deteksi,
+    luminansi,
     muat_model,
+    setarakan_kontras,
     siapkan_gambar,
 )
 
 MODEL_CADANGAN = "yolo11n.pt"
+IMGSZ_LATIH = 640
 
-st.set_page_config(page_title="Pemeriksaan APD Konstruksi", layout="wide")
+st.set_page_config(
+    page_title="Pemeriksaan APD Konstruksi",
+    page_icon="🦺",
+    layout="wide",
+)
 
 
 @st.cache_resource(show_spinner="Memuat model deteksi")
@@ -42,19 +54,65 @@ def model_ter_cache(nama: str):
     return muat_model(nama)
 
 
+@st.cache_data(show_spinner=False, max_entries=64)
+def deteksi_ter_cache(isi: bytes, nama_model: str, conf: float, iou: float, imgsz: int):
+    """Hasil inference, di-cache berdasarkan isi berkas dan seluruh parameter.
+
+    Yang disimpan hanya daftar dict, bukan objek Results Ultralytics, karena
+    yang terakhir berat dan tidak dirancang untuk disimpan lintas rerun.
+    Anotasi gambar digambar sendiri oleh `src.tampilan`, jadi Results memang
+    tidak dibutuhkan lagi setelah inference selesai.
+
+    Efeknya, menoleh ke tampilan CLAHE atau membuka expander tidak memicu
+    inference ulang, sementara mengubah confidence tetap memicunya, karena
+    conf ikut menjadi kunci cache.
+    """
+    gambar = siapkan_gambar(isi)
+    model = model_ter_cache(nama_model)
+    hasil, _ = deteksi(model, gambar, conf=conf, iou=iou, imgsz=imgsz)
+    return hasil
+
+
+def sebagai_png(gambar) -> bytes:
+    """Ubah gambar PIL menjadi bytes PNG.
+
+    Dibutuhkan karena `deteksi_ter_cache` memakai isi berkas sebagai kunci
+    cache, sementara gambar hasil CLAHE tidak berasal dari berkas apa pun.
+    PNG dipilih karena lossless, jadi masukan model tidak ikut berubah oleh
+    kompresi.
+    """
+    penampung = io.BytesIO()
+    gambar.save(penampung, format="PNG")
+    return penampung.getvalue()
+
+
+@st.cache_data(show_spinner=False)
+def catatan_model(nama: str) -> dict:
+    """Metrik model dari berkas catatan versinya, kalau ada."""
+    jalur = DIR / "laporan" / f"{Path(nama).stem.removeprefix('apd_')}_catatan.json"
+    if not jalur.exists():
+        return {}
+    return json.loads(jalur.read_text(encoding="utf-8"))
+
+
+# ----------------------------------------------------------------- kepala
+
 st.title("Pemeriksaan Kelengkapan APD Pekerja Konstruksi")
 st.caption(
-    "Unggah foto lokasi kerja, sistem mendeteksi pekerja beserta helm dan rompinya."
+    "Unggah satu atau beberapa foto lokasi kerja. Sistem mengenali setiap "
+    "pekerja, mengaitkan helm dan rompi yang terdeteksi kepada pekerja yang "
+    "memakainya, lalu menyatakan siapa yang kelengkapannya belum penuh."
 )
 
 tersedia = daftar_model()
 if not tersedia:
     st.warning(
         f"Belum ada bobot hasil training di folder `models/`. Aplikasi memakai "
-        f"model bawaan `{MODEL_CADANGAN}` yang dilatih di COCO, jadi ia mengenali "
-        f"orang tapi belum mengenali helm dan rompi. Ini kondisi sementara hari 3, "
-        f"dipakai untuk membuktikan jalur deploy sudah tembus."
+        f"model bawaan `{MODEL_CADANGAN}` yang dilatih di COCO, jadi ia "
+        f"mengenali orang tapi belum mengenali helm dan rompi."
     )
+
+# ----------------------------------------------------------------- sidebar
 
 with st.sidebar:
     st.subheader("Model")
@@ -69,8 +127,10 @@ with st.sidebar:
         0.05,
         help=(
             "Turunkan berarti lebih banyak objek tertangkap dan lebih banyak "
-            "deteksi palsu. Naikkan berarti sebaliknya. Ini keputusan, bukan "
-            "angka bawaan yang harus diterima."
+            "deteksi palsu. Untuk keselamatan, melewatkan pelanggaran lebih "
+            "mahal daripada alarm palsu, jadi nilai rendah lebih dapat "
+            "dipertahankan daripada nilai tinggi. Ini keputusan, bukan angka "
+            "bawaan yang harus diterima."
         ),
     )
     iou = st.slider(
@@ -79,79 +139,164 @@ with st.sidebar:
         0.90,
         0.70,
         0.05,
-        help="Turunkan kalau satu objek terdeteksi beberapa kali.",
+        help="Turunkan kalau satu objek terdeteksi beberapa kali bertumpuk.",
     )
     imgsz = st.select_slider(
         "Ukuran masukan model",
         options=[640, 960],
-        value=640,
-        help="Samakan dengan nilai yang dipakai saat training.",
+        value=IMGSZ_LATIH,
+        help=(
+            "Samakan dengan nilai saat training. Nilai berbeda menggeser skala "
+            "objek terhadap apa yang dipelajari model."
+        ),
     )
+    if imgsz != IMGSZ_LATIH:
+        st.caption(
+            f"Model ini dilatih pada {IMGSZ_LATIH}. Menaikkannya bisa menolong "
+            f"objek kecil, tapi hasilnya belum tentu lebih baik karena skalanya "
+            f"tidak lagi sama dengan saat training."
+        )
+
+    st.subheader("Tampilan")
+    tampilkan_atribut = st.checkbox(
+        "Gambar kotak helm dan rompi",
+        value=True,
+        help="Matikan kalau gambarnya padat dan kotak pekerja jadi sulit dilihat.",
+    )
+    banding_clahe = st.checkbox(
+        "Bandingkan dengan CLAHE",
+        value=False,
+        help=(
+            "Menjalankan deteksi kedua pada versi gambar yang kontrasnya "
+            "disetarakan. Model dilatih TANPA ini, jadi hasil yang lebih "
+            "banyak belum tentu lebih benar."
+        ),
+    )
+
+# ----------------------------------------------------------------- masukan
 
 berkas = st.file_uploader(
-    "Unggah gambar", type=["jpg", "jpeg", "png", "webp"], accept_multiple_files=False
+    "Unggah gambar",
+    type=["jpg", "jpeg", "png", "webp"],
+    accept_multiple_files=True,
 )
 
-if berkas is None:
-    st.info("Unggah sebuah gambar untuk memulai.")
+if not berkas:
+    st.info(
+        "Unggah sebuah gambar untuk memulai. Bisa beberapa sekaligus, dan "
+        "totalnya akan muncul di panel kiri."
+    )
+    tampilan.panel_model(catatan_model(nama_model))
     st.stop()
 
-gambar = siapkan_gambar(berkas)
-model = model_ter_cache(nama_model)
-hasil, raw = deteksi(model, gambar, conf=conf, iou=iou, imgsz=imgsz)
+# Sesi dibangun ulang dari seluruh berkas yang sedang terunggah, bukan
+# ditambahkan sedikit demi sedikit ke st.session_state.
+#
+# Ini disengaja. Streamlit menjalankan ulang skrip setiap kali slider digeser,
+# jadi riwayat yang ditumpuk akan menghitung gambar yang sama berkali-kali.
+# Lebih buruk lagi, riwayat yang bertahan akan mencampur vonis dari confidence
+# threshold yang berbeda ke dalam satu angka kepatuhan, dan angka itu tidak
+# berarti apa-apa. Menghitung ulang pada ambang yang sedang aktif adalah
+# perilaku yang benar, dan sifatnya idempoten.
+sesi = Sesi()
 
-kiri, kanan = st.columns(2)
-with kiri:
-    st.image(gambar, caption="Gambar asli", use_container_width=True)
-with kanan:
-    # .plot() mengembalikan array BGR, dibalik supaya warnanya benar di Streamlit.
-    st.image(
-        raw.plot()[:, :, ::-1],
-        caption="Hasil deteksi",
-        use_container_width=True,
+# ----------------------------------------------------------------- per gambar
+
+for i, satu in enumerate(berkas):
+    isi = satu.getvalue()
+    gambar = siapkan_gambar(isi)
+    deteksi_gambar = deteksi_ter_cache(isi, nama_model, conf, iou, imgsz)
+    hasil = asosiasi(deteksi_gambar)
+    sesi.tambah(satu.name, hasil)
+
+    if len(berkas) > 1:
+        st.divider()
+        st.subheader(f"{i + 1}. {satu.name}")
+
+    catatan_cahaya = tampilan.peringatan_pencahayaan(luminansi(gambar))
+    if catatan_cahaya:
+        st.warning(catatan_cahaya)
+
+    tampilan.sandingkan(gambar, tampilan.gambar_vonis(gambar, hasil, tampilkan_atribut))
+    tampilan.legenda()
+
+    tampilan.banner(hasil.ringkasan)
+    tampilan.panel_ringkasan(hasil)
+
+    if hasil.pekerja:
+        st.markdown("**Rincian per pekerja**")
+        tampilan.tabel_pekerja(hasil)
+
+    tampilan.panel_bukti(hasil, deteksi_gambar, conf, iou)
+
+    if banding_clahe:
+        with st.expander("Perbandingan dengan CLAHE", expanded=True):
+            disetarakan = setarakan_kontras(gambar)
+            deteksi_clahe = deteksi_ter_cache(
+                sebagai_png(disetarakan), nama_model, conf, iou, imgsz
+            )
+            hasil_clahe = asosiasi(deteksi_clahe)
+
+            tampilan.sandingkan(
+                tampilan.gambar_vonis(gambar, hasil, tampilkan_atribut),
+                tampilan.gambar_vonis(disetarakan, hasil_clahe, tampilkan_atribut),
+            )
+            st.caption("Kiri gambar asli, kanan setelah kontras disetarakan.")
+
+            st.dataframe(
+                [
+                    {
+                        "ukuran": nama,
+                        "gambar asli": asli,
+                        "setelah CLAHE": sesudah,
+                        "selisih": sesudah - asli,
+                    }
+                    for nama, asli, sesudah in (
+                        ("objek terdeteksi", len(deteksi_gambar), len(deteksi_clahe)),
+                        ("pekerja", hasil.ringkasan.pekerja, hasil_clahe.ringkasan.pekerja),
+                        (
+                            "tidak lengkap",
+                            hasil.ringkasan.tidak_lengkap,
+                            hasil_clahe.ringkasan.tidak_lengkap,
+                        ),
+                        (
+                            "belum dapat dipastikan",
+                            hasil.ringkasan.belum_pasti,
+                            hasil_clahe.ringkasan.belum_pasti,
+                        ),
+                    )
+                ],
+                width="stretch",
+                hide_index=True,
+            )
+            st.info(
+                "Model ini dilatih tanpa CLAHE. Deteksi yang bertambah berarti "
+                "penyetaraan kontras memunculkan objek yang tadinya tenggelam, "
+                "tapi bisa juga berarti ia memunculkan tekstur yang keliru "
+                "dikenali. Perbandingan ini disediakan untuk dilihat, bukan "
+                "untuk dijadikan dasar vonis. Angka resmi tetap yang dari "
+                "gambar asli."
+            )
+
+# ----------------------------------------------------------------- total sesi
+
+with st.sidebar:
+    st.divider()
+    tampilan.dashboard_sesi(sesi)
+    tampilan.unduh_csv(
+        sesi.semua_baris(),
+        "kepatuhan_apd.csv",
+        "Unduh CSV per pekerja",
     )
 
-if not hasil:
-    st.warning(
-        f"Tidak ada objek terdeteksi pada confidence {conf:.2f}. "
-        f"Coba turunkan nilainya di panel kiri."
-    )
-    st.stop()
+if len(berkas) > 1:
+    st.divider()
+    st.subheader("Total seluruh gambar yang diunggah")
+    total = sesi.total()
+    k1, k2, k3, k4 = st.columns(4)
+    k1.metric("Gambar", len(sesi))
+    k2.metric("Pekerja", total.pekerja)
+    k3.metric("Tidak lengkap", total.tidak_lengkap)
+    k4.metric("Belum dapat dipastikan", total.belum_pasti)
 
-hitungan = collections.Counter(d["cls"] for d in hasil)
-
-a, b = st.columns(2)
-a.metric("Total objek", len(hasil))
-b.metric("Jenis kelas terdeteksi", len(hitungan))
-
-st.subheader("Hitungan per kelas")
-st.caption(f"Pada confidence threshold {conf:.2f} dan IoU {iou:.2f}.")
-st.dataframe(
-    [{"kelas": k, "jumlah": v} for k, v in hitungan.most_common()],
-    use_container_width=True,
-    hide_index=True,
-)
-
-with st.expander("Rincian tiap deteksi"):
-    st.dataframe(
-        [
-            {
-                "kelas": d["cls"],
-                "confidence": d["conf"],
-                "x1": d["box"][0],
-                "y1": d["box"][1],
-                "x2": d["box"][2],
-                "y2": d["box"][3],
-            }
-            for d in sorted(hasil, key=lambda x: -x["conf"])
-        ],
-        use_container_width=True,
-        hide_index=True,
-    )
-
-st.divider()
-st.caption(
-    "Versi hari 3, sengaja minimal. Lapisan analisis yang menghubungkan helm dan "
-    "rompi ke pekerja tertentu, beserta vonis kelengkapan APD, dikerjakan hari 4 "
-    "sampai 7."
-)
+tampilan.panel_model(catatan_model(nama_model))

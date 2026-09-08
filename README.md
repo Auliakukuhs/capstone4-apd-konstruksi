@@ -3,15 +3,15 @@
 Capstone Project Module 4, Purwadhika Digital Technology School.
 Object detection untuk memeriksa kelengkapan alat pelindung diri di lokasi konstruksi.
 
-> Status pengerjaan: **hari 4 dari 15**. Bagian yang ditandai `[belum]` diisi
+> Status pengerjaan: **hari 7 dari 15**. Bagian yang ditandai `[belum]` diisi
 > sesuai urutan di `../catatan/URUTAN-KERJA.md`.
 >
-> Baseline sudah dilatih, bobotnya sudah dipakai aplikasi, dan aplikasinya sudah
-> hidup di Streamlit Community Cloud. Angka modelnya seadanya dan memang begitu
-> rencananya, pengejaran mAP dikerjakan hari 8 sampai 10.
+> Aplikasinya sudah lengkap dan hidup di Streamlit Community Cloud, lapisan
+> analisisnya sudah tervalidasi di test set, dan 48 uji lolos.
 >
-> Lapisan analisis sudah jadi dan tervalidasi di test set. Yang belum adalah
-> penyambungannya ke antarmuka, hari 6 dan 7.
+> Yang tersisa adalah mengejar angka model, hari 8 sampai 10. Angka mAP saat ini
+> seadanya dan memang begitu rencananya, karena jalur deploy dan lapisan analisis
+> dikerjakan lebih dulu.
 
 ## 1. Masalah yang diselesaikan
 
@@ -359,7 +359,115 @@ atribut tidak terdeteksi, atribut tanpa induk, dan nol deteksi, ditambah
 pembuktian numerik IoA lawan IoU, penyelesaian konflik, ketidakpekaan terhadap
 urutan, tiebreak vertikal, dan dua angka kepatuhan.
 
-## 7. Keterbatasan yang diketahui
+## 7. Aplikasi Streamlit
+
+Hidup di
+<https://capstone4-apd-konstruksi-kukuhsaputraaulia.streamlit.app>.
+
+Materi memperlihatkan empat elemen yang konsisten muncul di tiga demo
+aplikasi vision. Keempatnya ada, dan tempatnya begini.
+
+| Elemen | Di aplikasi ini |
+|---|---|
+| Dua kolom, asli dan beranotasi | `tampilan.sandingkan`, kotak berwarna mengikuti vonis tiap pekerja |
+| Panel Summary | `tampilan.panel_ringkasan`, enam metrik plus catatan atribut tanpa pekerja |
+| Banner vonis berwarna dengan kalimat tindakan | `tampilan.banner`, empat tingkat |
+| Sesuatu yang melampaui satu gambar | unggah banyak berkas sekaligus, dashboard total sesi di panel kiri, dan ekspor CSV per pekerja |
+
+### Warna kotak, bukan cuma banner
+
+Banner menyatakan keadaan keseluruhan, tapi pengawas perlu tahu **orang mana**.
+Karena itu warna vonis diturunkan sampai ke tingkat objek. Hijau lengkap, merah
+tidak lengkap, kuning belum dapat dipastikan, biru atribut yang berhasil
+dikaitkan, dan ungu atribut yang tidak dapat dikaitkan ke siapa pun.
+
+### Label yang menyesuaikan lebar kotak
+
+Rata-rata gambar dataset ini berisi 6,41 objek, dan yang terpadat 39. Pada foto
+sembilan pekerja berdampingan, tulisan "TIDAK LENGKAP" milik tiap orang saling
+menimpa sampai tidak satu pun terbaca. Ini bukan kasus tepi, ini kondisi normal.
+
+Karena itu label memilih sendiri bentuk terpanjang yang masih muat di lebar
+kotak, dari kalimat penuh, lalu singkatan, lalu nomor pekerja saja. Vonisnya
+tetap terbaca lewat warna kotak dan tabel di bawah gambar.
+
+### Sesi dihitung ulang, bukan ditumpuk
+
+Streamlit menjalankan ulang seluruh skrip setiap kali slider digeser. Pola yang
+umum dipakai, menambahkan hasil ke `st.session_state` tiap run, punya dua cacat
+sekaligus di aplikasi seperti ini.
+
+Gambar yang sama terhitung berkali-kali setiap pengguna menyentuh apa pun. Dan
+yang lebih berbahaya, riwayat yang bertahan mencampur vonis dari confidence
+threshold yang berbeda ke dalam satu angka kepatuhan, sehingga angka itu tidak
+berarti apa-apa.
+
+Aplikasi ini membangun ulang `Sesi` dari seluruh berkas yang sedang terunggah,
+pada ambang yang sedang aktif. Sifatnya idempoten, dan angkanya selalu
+menjelaskan keadaan yang sedang terlihat di layar.
+
+### Cache dipasang di tempat yang benar
+
+`@st.cache_resource` untuk bobot model, sekali per proses. `@st.cache_data`
+untuk hasil inference, berkunci isi berkas beserta seluruh parameter deteksi.
+
+Efeknya, membuka expander atau menyalakan pembanding CLAHE tidak memicu
+inference ulang, sementara menggeser confidence tetap memicunya, karena `conf`
+ikut menjadi kunci. Yang disimpan hanya daftar dict, bukan objek `Results`
+Ultralytics, karena anotasi digambar sendiri sehingga objek itu tidak
+dibutuhkan lagi setelah inference selesai.
+
+### CLAHE disediakan sebagai pembanding, bukan preprocessing
+
+Bagian 3 menjelaskan alasan CLAHE tidak dipakai sebagai preprocessing tetap.
+Di aplikasi ia tetap tersedia sebagai centang opsional yang menjalankan deteksi
+kedua pada gambar yang kontrasnya disetarakan, lalu menampilkan selisih
+hitungannya berdampingan.
+
+Bedanya penting. Pengguna melihat efeknya secara sadar, dan aplikasi menyatakan
+terang-terangan bahwa model dilatih tanpa CLAHE sehingga deteksi yang bertambah
+belum tentu deteksi yang lebih benar. Angka resmi tetap yang dari gambar asli.
+
+### Panel keterbatasan model ada di dalam aplikasi
+
+`tampilan.panel_model` membaca `laporan/v1_baseline_640_catatan.json` dan
+menampilkan mAP, tabel per kelas, dan satu peringatan yang menyebut angka
+terburuknya, yaitu recall `no-helmet` 0,333.
+
+Aplikasi yang menjatuhkan vonis tentang orang wajib menyatakan seberapa bisa ia
+dipercaya, dan angka terburuknya justru yang paling perlu terlihat.
+
+### Yang diverifikasi, bukan diasumsikan
+
+`use_container_width` sudah dinyatakan usang oleh Streamlit dan tenggat
+penghapusannya 31 Desember 2025, sudah lewat. Seluruh pemakaiannya diganti
+menjadi `width="stretch"`.
+
+Peringatan itu dikirim lewat logger Streamlit, bukan lewat modul `warnings`
+Python, sehingga pemeriksaan yang hanya menangkap `warnings` akan melaporkan
+bersih padahal tidak. Alat pemeriksanya dikalibrasi dulu pada kode yang sengaja
+dibuat salah, dipastikan berbunyi di sana, baru dipakai memeriksa aplikasi ini.
+
+| Uji | Hasil |
+|---|---|
+| `AppTest` jalur tanpa unggahan | tanpa exception, tanpa peringatan |
+| Seluruh komponen tampilan dengan data nyata | tanpa exception, tanpa peringatan |
+| Elemen yang benar-benar dirender | 10 dataframe, 27 metric, 2 banner merah, 1 banner hijau, 1 tombol unduh |
+| `tests/test_tampilan.py` | 16 uji lolos |
+
+Komponen yang memanggil `st.image` dan `st.download_button` sengaja diuji lewat
+harness terpisah, karena jalur tanpa unggahan tidak pernah menyentuh keduanya
+sehingga pemeriksaan `AppTest` biasa akan melewatkannya.
+
+### Gambar contoh untuk demo
+
+Tiga berkas di `contoh_gambar/`, seluruhnya dari test split. Yang ketiga adalah
+yang paling layak ditunjukkan di video, tiga belas orang yang di mata manusia
+jelas memakai APD lengkap tapi hanya empat yang bisa dipastikan model. Dua angka
+kepatuhannya 23,1 dan 75,0 persen, dan jarak itu adalah ukuran kerusakan yang
+dicegah status ketiga. Rinciannya di `contoh_gambar/README.md`.
+
+## 8. Keterbatasan yang diketahui
 
 Dua hal sudah diketahui sejak sebelum model dilatih, keduanya hasil pengukuran
 langsung terhadap file label.
@@ -384,7 +492,7 @@ model, karena gambar 30 megapiksel bisa mematikan server gratis.
 
 `[belum]` Keterbatasan lain yang muncul setelah evaluasi.
 
-## 8. Cara menjalankan ulang
+## 9. Cara menjalankan ulang
 
 Urutannya begini, dan tiap langkah berdiri sendiri.
 
@@ -433,17 +541,19 @@ capstone4-apd-konstruksi/
 ├── src/
 │   ├── detector.py         pemuatan model dan inference   [selesai]
 │   ├── analitik.py         logika analisis, tanpa impor Streamlit  [selesai]
-│   └── tampilan.py         komponen UI                    [belum]
+│   └── tampilan.py         komponen UI, menggambar dan merender  [selesai]
 ├── tests/
-│   ├── test_detector.py    empat uji asap, semuanya lolos  [selesai]
-│   ├── test_lingkungan.py  enam uji susunan dependensi     [selesai]
-│   └── test_analitik.py    19 uji lapisan analisis         [selesai]
+│   ├── test_detector.py    7 uji pemuatan dan pracitra    [selesai]
+│   ├── test_lingkungan.py  6 uji susunan dependensi       [selesai]
+│   ├── test_analitik.py    19 uji lapisan analisis        [selesai]
+│   └── test_tampilan.py    16 uji komponen tampilan       [selesai]
 ├── skrip/
 │   └── validasi_analitik.py  validasi asosiasi di test set  [selesai]
 ├── notebooks/
 │   ├── 01_eda_dataset.ipynb  lima pemeriksaan data       [selesai]
-│   └── 02_training.ipynb     training baseline, berisi output  [selesai]
-├── contoh_gambar/          tiga gambar untuk demo video    [belum]
+│   ├── 02_training.ipynb     training baseline, berisi output  [selesai]
+│   └── 03_evaluasi.ipynb     evaluasi final dan eksperimen  [belum]
+├── contoh_gambar/          tiga gambar demo dari test split  [selesai]
 └── laporan/
     ├── eda_ringkasan.json  angka EDA, dikutip README      [selesai]
     ├── v1_baseline_640_catatan.json  catatan versi model  [selesai]

@@ -3,11 +3,15 @@
 Capstone Project Module 4, Purwadhika Digital Technology School.
 Object detection untuk memeriksa kelengkapan alat pelindung diri di lokasi konstruksi.
 
-> Status pengerjaan: **hari 3 dari 15**. Bagian yang ditandai `[belum]` diisi
+> Status pengerjaan: **hari 4 dari 15**. Bagian yang ditandai `[belum]` diisi
 > sesuai urutan di `../catatan/URUTAN-KERJA.md`.
 >
-> Baseline sudah dilatih dan bobotnya sudah dipakai aplikasi. Angkanya seadanya
-> dan memang begitu rencananya, pengejaran mAP dikerjakan hari 8 sampai 10.
+> Baseline sudah dilatih, bobotnya sudah dipakai aplikasi, dan aplikasinya sudah
+> hidup di Streamlit Community Cloud. Angka modelnya seadanya dan memang begitu
+> rencananya, pengejaran mAP dikerjakan hari 8 sampai 10.
+>
+> Lapisan analisis sudah jadi dan tervalidasi di test set. Yang belum adalah
+> penyambungannya ke antarmuka, hari 6 dan 7.
 
 ## 1. Masalah yang diselesaikan
 
@@ -200,10 +204,160 @@ init, bukan kecepatan modelnya.
 
 ## 6. Lapisan analisis
 
-`[belum]` Hari 4 dan 5.
+Ada di `src/analitik.py`. Modul itu sengaja tidak mengimpor Streamlit maupun
+Ultralytics, sehingga logikanya bisa diuji tanpa GPU dan tanpa menjalankan
+aplikasi. Masukannya hanya daftar dict keluaran `src.detector.ke_deteksi`.
 
-Rancangannya asosiasi atribut ke pekerja lewat IoA, bukan aritmetika hitungan.
-Alasan kuantitatifnya ada di bagian 7.
+### Kenapa bukan aritmetika hitungan
+
+Contoh di SOAL, 4 helmet, 2 vest, 2 no-vest pada 4 pekerja, kesimpulannya 2
+orang tidak lengkap. Aritmetika itu benar untuk contoh itu, tapi rapuh secara
+umum. Diukur pada ground truth, `vest` ditambah `no-vest` hanya 79,3 persen
+dari jumlah `person`, jadi pengurangan sederhana melebih-lebihkan pelanggaran
+rompi sekitar 20 persen **bahkan pada anotasi sempurna**.
+
+Lagi pula pengurangan tidak bisa menjawab pertanyaan yang berguna di lapangan,
+yaitu pekerja yang mana.
+
+### IoA, bukan IoU
+
+Setiap atribut diasosiasikan ke kotak `person` yang memuatnya lewat **IoA**,
+yaitu luas irisan dibagi luas kotak atribut saja. Bukan IoU, yang membagi
+dengan gabungan luas sehingga tertekan oleh kotak person yang jauh lebih besar.
+
+Diukur pada kotak sungguhan, satu helm yang berada **sepenuhnya** di dalam
+kotak pekerja menghasilkan IoU di bawah 0,10 tapi IoA tepat 1,00. Dengan
+ambang 0,5 pada IoU, helm yang jelas-jelas milik pekerja itu justru ditolak.
+
+Saat satu helm memenuhi ambang pada lebih dari satu pekerja, IoA seri 1,00 di
+keduanya dan tidak bisa memutuskan. Yang memutuskan **posisi vertikal**. Pada
+ground truth, 98,8 persen pusat helm berada di 25 persen teratas kotak person
+dengan median 0,09, jadi pemenangnya pekerja yang kedalaman relatifnya paling
+dekat ke 0,09.
+
+### Tiga status, bukan dua
+
+| Status | Artinya |
+|---|---|
+| `memakai` | atributnya terdeteksi dan terasosiasi |
+| `tidak memakai` | kelas `no-helmet` atau `no-vest` yang terdeteksi |
+| `belum dapat dipastikan` | tidak ada kotak apa pun untuk atribut itu |
+
+Vonis per pekerja lahir dari kombinasinya. Pelanggaran yang terbukti selalu
+menang atas ketidakpastian, sehingga satu atribut yang jelas tidak dipakai
+sudah cukup menyatakan tidak lengkap. Sebaliknya LENGKAP hanya diberikan kalau
+kedua atribut benar-benar terlihat.
+
+Alasannya kuantitatif. Pada ground truth train dan valid, **11,8 persen kotak
+person tidak punya kotak helmet sama sekali**, dan pada test set 8,9 persen.
+Kalau anotator manusia saja melewatkan sebanyak itu, model pasti lebih sering.
+Menyamakan "tidak terdeteksi" dengan "melanggar" memproduksi tuduhan palsu
+terhadap orang yang sebenarnya patuh.
+
+### Konflik dan urutan
+
+Model bisa mengeluarkan `helmet` dan `no-helmet` pada pekerja yang sama saat
+ragu. Yang belakangan **tidak** menimpa yang duluan, karena hasilnya lalu
+bergantung pada urutan deteksi. Yang menang confidence tertinggi, dan
+pertentangannya dicatat supaya bisa ditampilkan sebagai bukti.
+
+`tests/test_analitik.py` menguji seluruh permutasi urutan deteksi pada satu
+kasus berkonflik dan memastikan vonisnya tidak berubah.
+
+### Atribut tanpa induk tidak dibuang
+
+Helm yang tidak cocok ke satu pekerja pun dilaporkan terpisah, bukan dihilangkan
+diam-diam. Jumlahnya adalah petunjuk langsung bahwa ada pekerja yang tidak
+terdeteksi, dan itu informasi yang berguna bagi pengawas.
+
+### Dua angka kepatuhan, bukan satu
+
+| Angka | Rumus | Kapan dipakai |
+|---|---|---|
+| Kepatuhan | lengkap dibagi seluruh pekerja | angka pesimistis, yang belum pasti ikut penyebut |
+| Kepatuhan terbaca | lengkap dibagi lengkap ditambah tidak lengkap | adil dibandingkan antar gambar |
+
+Keduanya mengembalikan nilai kosong, bukan nol, kalau tidak ada pekerja di
+gambar. "Tidak ada orang" tidak boleh terbaca sebagai "kepatuhan nol persen".
+
+### Validasi di test set, bukan di contoh buatan
+
+`skrip/validasi_analitik.py` menjalankan asosiasi pada **kotak ground truth**
+test set. Ini menguji algoritmanya sendiri, terlepas dari kualitas deteksi.
+Angkanya tersimpan di `laporan/validasi_analitik.json`.
+
+| Ukuran | Nilai |
+|---|---|
+| Gambar / pekerja / atribut | 90 / 214 / 409 |
+| Atribut cocok ke tepat satu pekerja | 366, **89,5 persen** |
+| Atribut cocok ke lebih dari satu, tiebreak dipakai | 4 |
+| Atribut tanpa induk | 39, yaitu 22 helmet, 9 vest, 8 no-vest |
+| Pekerja tanpa kotak helm sama sekali | 19, 8,9 persen |
+| Vonis dari ground truth | 108 lengkap, 71 tidak lengkap, 35 belum dapat dipastikan |
+
+Baris terakhir adalah temuan terpenting di seluruh bagian ini. **35 dari 214
+pekerja, 16,4 persen, tidak dapat divonis bahkan dengan anotasi manusia.** Jadi
+status ketiga bukan cara menutupi kelemahan model, ia melekat pada datanya.
+
+Porsi cocok tepat satu di test set, 89,5 persen, lebih rendah daripada 94,5
+persen yang terukur di train dan valid. Sebabnya test set punya proporsi helm
+yatim lebih tinggi, dan angka yang lebih rendah inilah yang dipakai, bukan yang
+lebih bagus.
+
+### Vonis prediksi model dibanding vonis ground truth
+
+Bagian 2 skrip yang sama menjalankan model pada 90 gambar test, menjatuhkan
+vonis dari prediksinya, lalu membandingkannya dengan vonis yang lahir dari
+ground truth. Kotak pekerja dipasangkan lewat IoU 0,5. Ini mengukur sistem utuh
+dari piksel sampai kesimpulan, bukan cuma modelnya.
+
+| Ukuran | Nilai |
+|---|---|
+| Pekerja ground truth / prediksi | 214 / 237 |
+| Berhasil dipasangkan | 187 |
+| Pekerja terlewat / palsu | 27 / 50 |
+| **Vonis benar** | **130 dari 187, 69,5 persen** |
+
+Matriks vonis, baris ground truth dan kolom prediksi.
+
+| | pred LENGKAP | pred TIDAK LENGKAP | pred BELUM PASTI |
+|---|---|---|---|
+| **GT LENGKAP** (104) | 75 | 7 | 22 |
+| **GT TIDAK LENGKAP** (57) | 4 | 43 | 10 |
+| **GT BELUM PASTI** (26) | 3 | 11 | 12 |
+
+### Bukti angka bahwa status ketiga bukan sekadar kehati-hatian
+
+Ketiga jenis kesalahan di matriks itu **biayanya sangat berbeda**, jadi akurasi
+tunggal 69,5 persen menyembunyikan yang penting.
+
+| Jenis kesalahan | Jumlah | Laju |
+|---|---|---|
+| Pembebasan keliru, pelanggar dinyatakan lengkap | 4 dari 57 | **7,0 persen** |
+| Tuduhan palsu, pekerja patuh dinyatakan melanggar | 7 dari 104 | **6,7 persen** |
+| Tuduhan palsu **kalau status ketiga dihapus** | 29 dari 104 | **27,9 persen** |
+
+Baris ketiga adalah simulasi sistem dua status, yang terpaksa membaca "tidak
+terdeteksi" sebagai "melanggar". Dari 104 pekerja yang sebenarnya patuh, 29
+akan dituduh melanggar. Dengan status ketiga, angkanya turun menjadi 7.
+
+**Status ketiga memotong tuduhan palsu dari 27,9 persen menjadi 6,7 persen,
+lebih dari empat kali lipat.** Harganya, 32 pekerja dilempar ke pemeriksaan
+manusia. Untuk sistem keselamatan yang keluarannya bisa berujung teguran
+terhadap orang, pertukaran itu jelas menguntungkan.
+
+Perhatikan juga sebaran kesalahannya. Dari 57 vonis yang meleset, 32 di
+antaranya meleset ke arah "belum dapat dipastikan", yaitu arah yang meminta
+manusia memeriksa, bukan arah yang mengarang kesimpulan. Sistem ini salah
+dengan cara yang aman.
+
+### Uji
+
+`tests/test_analitik.py`, 19 uji, semuanya lolos. Cakupannya mencakup lima
+kasus yang diminta rencana kerja, yaitu pekerja lengkap, pekerja melanggar,
+atribut tidak terdeteksi, atribut tanpa induk, dan nol deteksi, ditambah
+pembuktian numerik IoA lawan IoU, penyelesaian konflik, ketidakpekaan terhadap
+urutan, tiebreak vertikal, dan dua angka kepatuhan.
 
 ## 7. Keterbatasan yang diketahui
 
@@ -278,18 +432,22 @@ capstone4-apd-konstruksi/
 │   └── apd_v1_baseline_640.pt  5,47 MB          [selesai]
 ├── src/
 │   ├── detector.py         pemuatan model dan inference   [selesai]
-│   ├── analitik.py         logika analisis, tanpa impor Streamlit  [belum]
+│   ├── analitik.py         logika analisis, tanpa impor Streamlit  [selesai]
 │   └── tampilan.py         komponen UI                    [belum]
 ├── tests/
 │   ├── test_detector.py    empat uji asap, semuanya lolos  [selesai]
 │   ├── test_lingkungan.py  enam uji susunan dependensi     [selesai]
-│   └── test_analitik.py    uji lapisan analisis            [belum]
+│   └── test_analitik.py    19 uji lapisan analisis         [selesai]
+├── skrip/
+│   └── validasi_analitik.py  validasi asosiasi di test set  [selesai]
 ├── notebooks/
 │   ├── 01_eda_dataset.ipynb  lima pemeriksaan data       [selesai]
 │   └── 02_training.ipynb     training baseline, berisi output  [selesai]
 ├── contoh_gambar/          tiga gambar untuk demo video    [belum]
 └── laporan/
-    └── eda_ringkasan.json  angka EDA, dikutip README      [selesai]
+    ├── eda_ringkasan.json  angka EDA, dikutip README      [selesai]
+    ├── v1_baseline_640_catatan.json  catatan versi model  [selesai]
+    └── validasi_analitik.json  angka validasi asosiasi    [selesai]
 ```
 
 `src/analitik.py` sengaja tidak mengimpor Streamlit maupun Ultralytics, supaya

@@ -26,3 +26,6 @@ datasets/
 # Dataset yang diekstrak notebook, bisa dihasilkan ulang dari zip
 notebooks/dataset/
 dataset/
+
+# artefak build paket pengalih, dibuat pip saat memasang dari folder lokal
+*.egg-info/

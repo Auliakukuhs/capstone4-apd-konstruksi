@@ -1,0 +1,62 @@
+{
+  "split": "test",
+  "ground_truth": {
+    "gambar": 90,
+    "person": 214,
+    "atribut": 409,
+    "atribut_cocok_tepat_satu_person": 366,
+    "atribut_cocok_lebih_dari_satu": 4,
+    "atribut_tanpa_induk": {
+      "helmet": 22,
+      "vest": 9,
+      "no-vest": 8
+    },
+    "porsi_cocok_tepat_satu": 0.8949,
+    "person_tanpa_kotak_helm": 19,
+    "porsi_person_tanpa_kotak_helm": 0.0888,
+    "sebaran_vonis": {
+      "LENGKAP": 108,
+      "TIDAK LENGKAP": 71,
+      "BELUM DAPAT DIPASTIKAN": 35
+    }
+  },
+  "prediksi_model": {
+    "model": "apd_v1_baseline_640.pt",
+    "conf": 0.25,
+    "iou_nms": 0.7,
+    "imgsz": 640,
+    "iou_pasangan": 0.5,
+    "person_ground_truth": 214,
+    "person_prediksi": 237,
+    "pekerja_terpasangkan": 187,
+    "vonis_benar": 130,
+    "akurasi_vonis": 0.6952,
+    "pekerja_terlewat": 27,
+    "pekerja_palsu": 50,
+    "matriks_vonis": {
+      "LENGKAP": {
+        "LENGKAP": 75,
+        "TIDAK LENGKAP": 7,
+        "BELUM DAPAT DIPASTIKAN": 22
+      },
+      "TIDAK LENGKAP": {
+        "LENGKAP": 4,
+        "TIDAK LENGKAP": 43,
+        "BELUM DAPAT DIPASTIKAN": 10
+      },
+      "BELUM DAPAT DIPASTIKAN": {
+        "LENGKAP": 3,
+        "TIDAK LENGKAP": 11,
+        "BELUM DAPAT DIPASTIKAN": 12
+      }
+    },
+    "pekerja_patuh_terpasangkan": 104,
+    "pekerja_melanggar_terpasangkan": 57,
+    "tuduhan_palsu": 7,
+    "laju_tuduhan_palsu": 0.0673,
+    "tuduhan_palsu_kalau_hanya_dua_status": 29,
+    "laju_tuduhan_palsu_dua_status": 0.2788,
+    "pembebasan_keliru": 4,
+    "laju_pembebasan_keliru": 0.0702
+  }
+}

@@ -9,6 +9,28 @@ torch==2.11.0
 torchvision==0.26.0
 ultralytics==8.4.138
 
+# INI YANG MENGGANTIKAN packages.txt.
+#
+# Ultralytics mewajibkan `opencv-python`, yang menautkan diri ke `libGL.so.1`,
+# `libxcb.so.1`, dan `libgthread-2.0.so.0`. Ketiganya tidak ada di image
+# Streamlit Community Cloud dan dulu dipasang lewat apt.
+#
+# Baris pertama di bawah adalah paket lokal di dalam repo ini yang mengaku
+# bernama `opencv-python` dan tidak berisi kode apa pun, hanya satu dependensi
+# ke headless. Akibatnya resolver menganggap kebutuhan ultralytics sudah
+# terpenuhi dan `opencv-python` asli tidak pernah diunduh dari PyPI, sehingga
+# tidak ada yang bisa menimpa berkas cv2 milik headless.
+#
+# Menulis headless sendirian TIDAK cukup, dan menulis keduanya berurutan juga
+# tidak. Keduanya sudah diuji dan gagal, tabelnya ada di
+# vendor/opencv-python-stub/README.md. Jangan disederhanakan tanpa membaca itu.
+#
+# Batas <5 disengaja. OpenCV 5.0 sudah rilis sementara ultralytics 8.4.138
+# lebih tua daripada itu, jadi 4.x adalah yang benar-benar teruji dengan bobot
+# dan kode ini.
+./vendor/opencv-python-stub
+opencv-python-headless>=4.10,<5
+
 # DIPIN KETAT juga, tapi alasannya berbeda. Streamlit pure Python sehingga
 # wheel-nya universal, jadi ia tidak pernah kena masalah yang menjatuhkan
 # pillow. Yang dijaga di sini permukaan API-nya, yang berubah antar versi minor.

@@ -272,7 +272,8 @@ bawaan COCO yang hanya mengenali orang, dan mengatakannya terus terang di layar.
 capstone4-apd-konstruksi/
 ├── app.py                  entry point Streamlit          [jalan]
 ├── requirements.txt        wheel CPU, versi dipin
-├── packages.txt            pustaka sistem untuk OpenCV
+├── vendor/
+│   └── opencv-python-stub/ pengalih ke headless, tanpa kode  [selesai]
 ├── models/
 │   └── apd_v1_baseline_640.pt  5,47 MB          [selesai]
 ├── src/
@@ -280,7 +281,9 @@ capstone4-apd-konstruksi/
 │   ├── analitik.py         logika analisis, tanpa impor Streamlit  [belum]
 │   └── tampilan.py         komponen UI                    [belum]
 ├── tests/
-│   └── test_detector.py    empat uji asap, semuanya lolos  [selesai]
+│   ├── test_detector.py    empat uji asap, semuanya lolos  [selesai]
+│   ├── test_lingkungan.py  enam uji susunan dependensi     [selesai]
+│   └── test_analitik.py    uji lapisan analisis            [belum]
 ├── notebooks/
 │   ├── 01_eda_dataset.ipynb  lima pemeriksaan data       [selesai]
 │   └── 02_training.ipynb     training baseline, berisi output  [selesai]
@@ -301,6 +304,8 @@ logikanya bisa diuji tanpa GPU dan tanpa menjalankan aplikasi.
 | torch | `==2.11.0` | sama dengan versi di Colab |
 | torchvision | `==0.26.0` | pasangan torch 2.11.0 |
 | ultralytics | `==8.4.138` | **wajib sama** dengan versi saat training, berkas bobot menyimpan referensi kelas Python |
+| `./vendor/opencv-python-stub` | 4.99.0 | paket lokal tanpa kode, mencegah `opencv-python` asli terunduh |
+| opencv-python-headless | `>=4.10,<5` | **menggantikan `packages.txt`**, pustaka grafis datang dari wheel bukan dari apt |
 | streamlit | `==1.63.0` | ketat, verifikasi `AppTest` menjalankan `app.py` sampai selesai di Python 3.14 |
 | pillow | `>=11.0` | longgar, lihat alasannya di bawah |
 | pandas | tidak dicantumkan | tidak dipakai langsung, hanya ditarik streamlit |
@@ -342,19 +347,24 @@ berubah tanpa alasan.
 
 ### Yang diverifikasi di container, bukan diasumsikan
 
-| Uji | Hasil |
-|---|---|
-| `apt-get install libgl1 libglib2.0-0t64` di `debian:trixie` | berhasil, `libGL.so.1` dan `libgthread-2.0.so.0` ada |
-| `pip install -r requirements.txt` di Python 3.14.7 | berhasil |
-| `import cv2, torch, ultralytics, streamlit, PIL` | berhasil |
-| `streamlit run app.py` | HTTP 200 |
-| `AppTest.from_file("app.py").run()` | tanpa exception, tanpa peringatan deprecation |
-| `use_container_width` di `st.image` dan `st.dataframe` | masih diterima |
-| streamlit | 1.40.0 | |
-| pillow | 11.0.0 | |
-| pandas | 2.2.3 | |
+Semuanya di `python:3.14-slim`, image yang **tidak punya satu pun** dari
+`libGL.so.1`, `libxcb.so.1`, dan `libgthread-2.0.so.0`. Image itu lebih ramping
+daripada image Streamlit Cloud, jadi yang lolos di sana pasti lolos di Cloud.
 
-Diverifikasi pada Python 3.13.9, torch tanpa CUDA build, ukuran virtualenv 1,3 GB.
+| Uji | pip | uv |
+|---|---|---|
+| `install -r requirements.txt` di Python 3.14 | berhasil | berhasil |
+| `opencv-python` yang terpasang | pengalih 4.99.0 | pengalih 4.99.0 |
+| `import cv2` | berhasil | berhasil |
+| `import torch, ultralytics, streamlit` | berhasil | berhasil |
+| `tests/test_lingkungan.py` | enam lulus | enam lulus |
+| `tests/test_detector.py` | empat lulus | empat lulus |
+| `AppTest.from_file("app.py").run()` | tanpa exception | tanpa exception |
+| peringatan deprecation | tidak ada | tidak ada |
+
+Sebelumnya juga diverifikasi di `debian:trixie` bahwa `use_container_width`
+masih diterima `st.image` dan `st.dataframe` pada streamlit 1.63.0, dan bahwa
+`streamlit run app.py` menjawab HTTP 200.
 
 ### Dua kali salah pin, dua kali ketahuan sebelum deploy
 
@@ -369,33 +379,57 @@ atas diambil dari keluaran notebook, bukan dari perkiraan.
 Keduanya jenis kegagalan yang tidak berbunyi sampai deploy. Itu alasan uji
 pasang dijadwalkan hari 3, bukan di akhir.
 
-### Nama paket sistem, dan kenapa `libglib2.0-0` gagal
+### Kenapa `packages.txt` dibuang seluruhnya
 
-Deploy pertama gagal di `packages.txt`, bukan di Python.
+Aplikasi ini pernah punya `packages.txt` berisi `libgl1` dan `libglib2.0-0t64`.
+Berkas itu sekarang tidak ada, dan ketiadaannya disengaja.
 
-```
-libglib2.0-0 : Depends: libffi7 but it is not installable
-               Depends: libpcre3 but it is not installable
-E: Unable to correct problems, you have held broken packages
-```
+Tiga deploy gagal berturut turut karena berkas itu, masing-masing dengan sebab
+yang berbeda.
 
-Image Streamlit Community Cloud memakai **Debian 13 trixie**. Di sana
-`libglib2.0-0` sudah tidak punya versi kandidat, hanya tersisa sebagai nama
-virtual, sisa transisi time_t 64-bit. Sumber apt di image itu masih memuat entri
-bullseye yang tertinggal, jadi apt mengambil versi bullseye 2.66.8 yang
-membutuhkan `libffi7` dan `libpcre3`, dan keduanya tidak ada di trixie.
-
-Nama yang benar `libglib2.0-0t64`. Diverifikasi di container `debian:trixie`,
-bukan ditebak.
-
-| Paket | Trixie | Keterangan |
+| Percobaan | Galat | Sebab |
 |---|---|---|
-| `libgl1` | 1.7.0-1+b2 | ada, menyediakan `libGL.so.1` |
-| `libglib2.0-0` | **tidak ada kandidat** | nama virtual saja |
-| `libglib2.0-0t64` | 2.84.4-3~deb13u3 | ini yang dipakai |
+| 1 | `libglib2.0-0 : Depends: libffi7 but it is not installable` | image Cloud memakai Debian 13 trixie, di sana nama itu tinggal nama virtual sisa transisi time_t 64-bit. Yang benar `libglib2.0-0t64` |
+| 2 | `E: Unable to locate package NAMA` berkali-kali | `packages.txt` tidak mengenal komentar, setiap baris dikirim apa adanya ke `apt-get install` |
+| 3 | `E: Release file for ... bullseye-security is expired` | sumber apt bullseye yang tertinggal di image Cloud kedaluwarsa 8 September 2026, `apt-get update` mengembalikan exit code non-nol, dan build berhenti sebelum satu paket pun sempat dicoba |
 
-Glib tidak bisa dihilangkan begitu saja. Tanpa ia, `import cv2` gagal dengan
-`libgthread-2.0.so.0: cannot open shared object file`, juga sudah diuji.
+Kegagalan ketiga tidak bisa diperbaiki dari sisi repo. Ia ada di base image
+Streamlit, dan menimpa semua aplikasi yang punya `packages.txt`, bukan hanya
+yang ini.
+
+Karena itu jalan keluarnya bukan menebak nama paket yang benar sekali lagi,
+melainkan berhenti membutuhkan apt. `opencv-python-headless` memuat pustaka
+grafisnya di dalam wheel sendiri. Begitu ia dipakai, `packages.txt` tidak punya
+alasan untuk ada, dan seluruh kelas kegagalan ini hilang, termasuk yang belum
+terjadi.
+
+Menukar apt dengan headless ternyata tidak sesederhana mengganti satu baris.
+Ultralytics tetap menarik `opencv-python` sebagai dependensi, dan kedua paket
+memasang paket Python bernama `cv2` ke lokasi yang sama sehingga saling
+menimpa. Yang dipasang belakangan yang menang.
+
+Tiga susunan diuji di container tanpa pustaka grafis sama sekali.
+
+| Susunan `requirements.txt` | pip | uv |
+|---|---|---|
+| hanya `opencv-python-headless` | gagal | gagal |
+| `opencv-python` lalu `opencv-python-headless`, keduanya tingkat atas | **gagal** | berhasil |
+| pengalih lokal plus `opencv-python-headless` | **berhasil** | **berhasil** |
+
+Baris kedua yang paling penting dipahami. Ia berhasil dengan uv dan gagal
+dengan pip, jadi memakainya berarti aplikasi hidup atau mati tergantung
+resolver mana yang kebetulan dipakai build itu. Streamlit Cloud memakai
+keduanya, uv lebih dulu lalu pip sebagai cadangan, sehingga susunan itu tidak
+bisa diandalkan.
+
+Yang dipakai susunan ketiga. `vendor/opencv-python-stub` adalah paket lokal di
+dalam repo ini yang mengaku bernama `opencv-python`, tidak berisi kode apa pun,
+dan hanya membawa satu dependensi ke headless. Resolver menganggap kebutuhan
+ultralytics sudah terpenuhi sehingga **paket aslinya tidak pernah diunduh dari
+PyPI**. Tidak ada saingan, jadi tidak ada urutan yang perlu diandalkan.
+
+Alasan lengkapnya di `vendor/opencv-python-stub/README.md`, dan
+`tests/test_lingkungan.py` menjaga susunannya tidak dirapikan tanpa sengaja.
 
 ### Dua jebakan lingkungan yang sudah ditutup
 

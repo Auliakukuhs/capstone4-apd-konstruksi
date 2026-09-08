@@ -1,0 +1,25 @@
+# Paket pengalih. Tidak berisi satu baris kode pun.
+#
+# Ultralytics mewajibkan `opencv-python`, yang butuh pustaka grafis sistem yang
+# tidak ada di image Streamlit Community Cloud. Paket ini mengaku bernama
+# `opencv-python` lalu menyerahkan seluruh isinya ke `opencv-python-headless`,
+# yang memuat pustaka itu di dalam wheel-nya sendiri.
+#
+# Akibatnya `opencv-python` asli tidak pernah diunduh dari PyPI, sehingga tidak
+# ada yang bisa menimpa berkas cv2 milik headless. Penjelasan lengkapnya di
+# vendor/opencv-python-stub/README.md.
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "opencv-python"
+version = "4.99.0"
+description = "Pengalih lokal ke opencv-python-headless. Tanpa kode."
+requires-python = ">=3.9"
+dependencies = ["opencv-python-headless>=4.10,<5"]
+
+# Sengaja kosong. Berkas cv2 datang dari headless, bukan dari sini.
+[tool.setuptools]
+packages = []

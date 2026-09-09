@@ -159,8 +159,21 @@ def bagian_satu(berkas_label: list) -> dict:
     }
 
 
-def bagian_dua(berkas_label: list, nama_model: str) -> dict:
-    """Vonis dari prediksi model dibandingkan vonis dari ground truth."""
+def bagian_dua(
+    berkas_label: list,
+    nama_model: str,
+    imgsz: int = IMGSZ,
+    conf: float = CONF_MODEL,
+    iou: float = IOU_MODEL,
+) -> dict:
+    """Vonis dari prediksi model dibandingkan vonis dari ground truth.
+
+    Parameter deteksi bisa ditimpa, karena eksperimen hari 8 sampai 10
+    melatih model pada resolusi berbeda dan inference harus memakai resolusi
+    yang sama dengan saat training. `nama_model` boleh berupa jalur absolut,
+    supaya bobot yang baru selesai dilatih di Colab bisa langsung dinilai
+    tanpa harus disalin ke folder models lebih dulu.
+    """
     from PIL import Image
 
     from src.detector import deteksi as jalankan, muat_model
@@ -185,7 +198,7 @@ def bagian_dua(berkas_label: list, nama_model: str) -> dict:
         with Image.open(jalur_gambar) as img:
             gambar = img.convert("RGB")
             lebar, tinggi = gambar.size
-            mentah, _ = jalankan(model, gambar, conf=CONF_MODEL, iou=IOU_MODEL, imgsz=IMGSZ)
+            mentah, _ = jalankan(model, gambar, conf=conf, iou=iou, imgsz=imgsz)
 
         # Prediksi diubah ke koordinat ternormalisasi supaya sebanding dengan
         # ground truth, yang memang disimpan Roboflow dalam bentuk itu.
@@ -233,15 +246,19 @@ def bagian_dua(berkas_label: list, nama_model: str) -> dict:
 
     return {
         "model": nama_model,
-        "conf": CONF_MODEL,
-        "iou_nms": IOU_MODEL,
-        "imgsz": IMGSZ,
+        "conf": conf,
+        "iou_nms": iou,
+        "imgsz": imgsz,
         "iou_pasangan": IOU_PASANGAN,
         "person_ground_truth": total_acuan,
         "person_prediksi": total_prediksi,
         "pekerja_terpasangkan": total_pasangan,
         "vonis_benar": benar,
         "akurasi_vonis": round(benar / total_pasangan, 4) if total_pasangan else None,
+        # Penjaga. Model yang hampir tidak mendeteksi apa pun bisa terlihat
+        # unggul pada laju kesalahan, karena penyebutnya menyusut. Cakupan
+        # ini yang mencegah pembacaan itu.
+        "cakupan_pekerja": round(total_pasangan / total_acuan, 4) if total_acuan else None,
         "pekerja_terlewat": acuan_tak_terpasangkan,
         "pekerja_palsu": prediksi_tak_terpasangkan,
         "matriks_vonis": matriks,

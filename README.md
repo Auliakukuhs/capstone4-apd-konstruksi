@@ -3,15 +3,15 @@
 Capstone Project Module 4, Purwadhika Digital Technology School.
 Object detection untuk memeriksa kelengkapan alat pelindung diri di lokasi konstruksi.
 
-> Status pengerjaan: **hari 7 dari 15**. Bagian yang ditandai `[belum]` diisi
+> Status pengerjaan: **hari 8 dari 15**. Bagian yang ditandai `[belum]` diisi
 > sesuai urutan di `../catatan/URUTAN-KERJA.md`.
 >
 > Aplikasinya sudah lengkap dan hidup di Streamlit Community Cloud, lapisan
-> analisisnya sudah tervalidasi di test set, dan 48 uji lolos.
+> analisisnya sudah tervalidasi di test set, dan 61 uji lolos.
 >
-> Yang tersisa adalah mengejar angka model, hari 8 sampai 10. Angka mAP saat ini
-> seadanya dan memang begitu rencananya, karena jalur deploy dan lapisan analisis
-> dikerjakan lebih dulu.
+> `notebooks/03_eksperimen.ipynb` siap dijalankan di Colab untuk hari 8 sampai
+> 10. Angka mAP saat ini masih dari baseline, dan memang begitu rencananya,
+> karena jalur deploy dan lapisan analisis dikerjakan lebih dulu.
 
 ## 1. Masalah yang diselesaikan
 
@@ -110,26 +110,91 @@ Baseline `v1_baseline_640` dilatih 29 Agustus 2026 di Colab dengan Tesla T4.
 Berhenti sendiri di epoch 27 karena early stopping, hasil terbaik di epoch 17,
 total 10,6 menit. Catatan lengkapnya di `laporan/v1_baseline_640_catatan.json`.
 
-### Rencana eksperimen hari 8 sampai 10, direvisi setelah baseline
+### Rencana eksperimen hari 8 sampai 10, direvisi dua kali
 
-Rencana semula menaruh "naikkan epoch" sebagai eksperimen pertama. **Itu sudah
-terbantah oleh baselinenya sendiri.** Early stopping menyala di epoch 27 dengan
-hasil terbaik di epoch 17, artinya model sudah berhenti membaik jauh sebelum
-batas 30 epoch tercapai. Menaikkan epoch saja hampir pasti tidak menolong.
+Notebooknya `notebooks/03_eksperimen.ipynb`, siap dijalankan di Colab.
+Rencananya sudah berubah dua kali, dan kedua alasannya dicatat di sini karena
+keduanya adalah temuan, bukan perubahan selera.
 
-Urutannya diganti, dari yang paling ditopang bukti.
+**Revisi pertama, setelah baseline.** Rencana semula menaruh "naikkan epoch"
+sebagai eksperimen pertama. Itu terbantah oleh baselinenya sendiri. Early
+stopping menyala di epoch 27 dengan hasil terbaik di epoch 17, artinya model
+sudah berhenti membaik jauh sebelum batas 30 epoch tercapai. Menaikkan epoch
+saja hampir pasti tidak menolong. `patience` dinaikkan dari 10 ke 20 pada v2
+dan seterusnya, karena pada resolusi lebih tinggi model butuh lebih banyak
+epoch sebelum mendatar.
 
-| Run | Yang diubah | Kenapa |
+**Revisi kedua, setelah membaca kode Ultralytics.** Rencana semula memakai
+`copy_paste` untuk kelas `no-helmet`. **Itu tidak akan bekerja di dataset ini.**
+Blok `CopyPaste` di `ultralytics/data/augment.py` dibuka dengan
+
+```python
+if len(labels["instances"].segments) == 0 or self.p == 0:
+    return labels
+```
+
+Tanpa segmentasi ia keluar tanpa berbuat apa pun, dan seluruh 7.724 baris label
+dataset ini berisi lima kolom, yaitu bbox saja. Run itu akan menghabiskan waktu
+GPU lalu menghasilkan model yang identik dengan run sebelumnya, sementara
+namanya menjanjikan hal lain. Ini jenis kegagalan yang tidak berbunyi.
+
+Penggantinya oversampling tingkat data, yaitu menduplikasi gambar yang memuat
+`no-helmet`. Itu bukan augmentasi sama sekali sehingga tidak menyentuh larangan
+augmentasi geometris, dan efeknya sudah diukur di komputer lokal sebelum satu
+menit GPU pun dipakai.
+
+| Ukuran | Sebelum | Sesudah, duplikasi 4x |
 |---|---|---|
-| v1_baseline_640 | baseline, geometris mati | sudah ada |
-| v2_imgsz960 | resolusi 640 ke 960 | EDA menunjukkan 32,6 persen helmet dan 47,9 persen no-helmet di bawah 32 piksel pada 640. Ini yang paling mungkin mengangkat dua kelas terlemah |
-| v3_copypaste | penanganan `no-helmet` | recall 0,333 dari 24 instance. Copy-paste augmentation menyerang persis kelas ini |
-| v4_varian_s | nano ke small | terakhir, karena paling mahal dan paling jarang jadi akar masalah |
-| v5_dengan_mosaic | pembanding, mosaic dinyalakan | mengukur berapa mAP yang dikorbankan demi patuh pada SOAL |
+| Gambar train | 997 | 1.144, naik 14,7 persen |
+| Instance `no-helmet` | 94 | 376 |
+| Porsi `no-helmet` | 1,5 persen | **4,7 persen** |
+| Porsi `person` | 37,0 persen | 36,5 persen |
 
-`patience` juga dinaikkan dari 10 ke 20 pada v2 dan seterusnya. Dengan resolusi
-lebih tinggi, model butuh lebih banyak epoch sebelum mendatar, dan patience 10
-berisiko menghentikannya terlalu cepat.
+Hanya 49 gambar yang memuat `no-helmet`, jadi kelas lain hampir tidak bergerak.
+Risikonya dinyatakan terbuka, model melihat 49 foto itu empat kali per epoch,
+sehingga kalau `no-helmet` membaik tapi kelas lain memburuk, overfitting pada 49
+foto itu tersangka pertamanya.
+
+### Empat run, satu perubahan per run
+
+| Run | Yang diubah | Dibanding | Kenapa |
+|---|---|---|---|
+| `v1_baseline_640` | baseline, geometris mati | | sudah ada, dan tetap kandidat |
+| `v2_imgsz960` | resolusi 640 ke 960 | v1 | 32,6 persen helmet dan 47,9 persen no-helmet di bawah 32 piksel pada 640, turun ke 14,1 dan 17,0 persen pada 960 |
+| `v3_oversample_nohelmet` | train split, gambar no-helmet 4x | v2 | recall no-helmet 0,333, kelas terlemah |
+| `v4_varian_s` | nano ke small | v2 atau v3 | terakhir, karena paling mahal dan paling jarang jadi akar masalah |
+| `v5_dengan_mosaic` | mosaic dinyalakan | v2 | **pembanding, bukan kandidat.** Mengukur berapa mAP yang dikorbankan demi patuh pada SOAL |
+
+### Model dipilih dari kualitas vonis, bukan dari mAP
+
+Ini keputusan yang paling perlu dipahami di bagian ini. Setiap run dinilai dua
+kali, mAP di test set pada `conf=0.001`, dan **vonis per pekerja** dibandingkan
+vonis dari ground truth memakai `src/analitik.py` yang sama dengan aplikasi.
+
+Yang menentukan pemilihan adalah yang kedua. mAP mengukur kualitas kotak,
+sementara yang dibaca pengawas adalah vonis, dan biaya ketiga jenis kesalahan
+vonis sangat berbeda.
+
+Aturannya ada di `skrip/eksperimen.py`, dinyatakan di muka sebelum angkanya
+terlihat, dan diuji di `tests/test_eksperimen.py`.
+
+1. Run bertanda bukan kandidat dikeluarkan, yaitu v5
+2. **Penjaga cakupan.** Run yang cakupan pekerjanya jatuh lebih dari 5 poin di
+   bawah yang terbaik dikeluarkan. Tanpa penjaga ini, model yang hampir tidak
+   mendeteksi siapa pun akan terlihat unggul, sebab laju kesalahan dihitung
+   dari pekerja yang berhasil dipasangkan dan penyebutnya menyusut
+3. **Laju pembebasan keliru terendah menang.** Pelanggar yang dinyatakan
+   lengkap adalah kesalahan termahal, karena ia menghentikan pemeriksaan
+   terhadap orang yang justru berisiko
+4. Seri diputus akurasi vonis, lalu mAP@0.5:0.95
+
+Perhatikan bahwa mAP ada di urutan terakhir, dan itu disengaja.
+
+Satu celah sempat ada di sini dan sudah ditutup. Catatan v1 dibuat sebelum
+penilaian vonis ada, jadi ia tanpa angka itu dan otomatis tersingkir dari
+pemilihan, yang berarti "pertahankan baseline" bukan hasil yang mungkin dan
+eksperimen hanya bisa membaik menurut konstruksinya sendiri. Catatan v1 sudah
+dilengkapi, dan ada uji yang menjaga perilakunya.
 
 ### Keputusan yang sudah diambil
 
@@ -546,13 +611,16 @@ capstone4-apd-konstruksi/
 │   ├── test_detector.py    7 uji pemuatan dan pracitra    [selesai]
 │   ├── test_lingkungan.py  6 uji susunan dependensi       [selesai]
 │   ├── test_analitik.py    19 uji lapisan analisis        [selesai]
-│   └── test_tampilan.py    16 uji komponen tampilan       [selesai]
+│   ├── test_tampilan.py    16 uji komponen tampilan       [selesai]
+│   └── test_eksperimen.py  13 uji perkakas eksperimen     [selesai]
 ├── skrip/
-│   └── validasi_analitik.py  validasi asosiasi di test set  [selesai]
+│   ├── validasi_analitik.py  validasi asosiasi di test set  [selesai]
+│   └── eksperimen.py       oversample dan aturan pemilihan model  [selesai]
 ├── notebooks/
 │   ├── 01_eda_dataset.ipynb  lima pemeriksaan data       [selesai]
 │   ├── 02_training.ipynb     training baseline, berisi output  [selesai]
-│   └── 03_evaluasi.ipynb     evaluasi final dan eksperimen  [belum]
+│   ├── 03_eksperimen.ipynb   empat run hari 8 sampai 10  [siap dijalankan]
+│   └── 04_evaluasi_final.ipynb  confusion matrix dan kurva PR  [belum]
 ├── contoh_gambar/          tiga gambar demo dari test split  [selesai]
 └── laporan/
     ├── eda_ringkasan.json  angka EDA, dikutip README      [selesai]

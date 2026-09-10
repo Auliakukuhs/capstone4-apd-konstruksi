@@ -3,15 +3,18 @@
 Capstone Project Module 4, Purwadhika Digital Technology School.
 Object detection untuk memeriksa kelengkapan alat pelindung diri di lokasi konstruksi.
 
-> Status pengerjaan: **hari 8 dari 15**. Bagian yang ditandai `[belum]` diisi
+> Status pengerjaan: **hari 10 dari 15**. Bagian yang ditandai `[belum]` diisi
 > sesuai urutan di `../catatan/URUTAN-KERJA.md`.
 >
-> Aplikasinya sudah lengkap dan hidup di Streamlit Community Cloud, lapisan
-> analisisnya sudah tervalidasi di test set, dan 61 uji lolos.
+> Aplikasinya lengkap dan hidup di Streamlit Community Cloud, lapisan
+> analisisnya tervalidasi di test set, empat eksperimen training sudah selesai,
+> dan 61 uji lolos.
 >
-> `notebooks/03_eksperimen.ipynb` siap dijalankan di Colab untuk hari 8 sampai
-> 10. Angka mAP saat ini masih dari baseline, dan memang begitu rencananya,
-> karena jalur deploy dan lapisan analisis dikerjakan lebih dulu.
+> Model yang dipakai `v3_oversample_nohelmet`. **mAP-nya lebih rendah daripada
+> baseline, dan itu disengaja.** Alasannya di bagian 5.
+>
+> Sisa pekerjaan hari 11 sampai 15, yaitu evaluasi final, poles, naskah video,
+> rekaman, dan pengumpulan.
 
 ## 1. Masalah yang diselesaikan
 
@@ -112,9 +115,9 @@ total 10,6 menit. Catatan lengkapnya di `laporan/v1_baseline_640_catatan.json`.
 
 ### Rencana eksperimen hari 8 sampai 10, direvisi dua kali
 
-Notebooknya `notebooks/03_eksperimen.ipynb`, siap dijalankan di Colab.
-Rencananya sudah berubah dua kali, dan kedua alasannya dicatat di sini karena
-keduanya adalah temuan, bukan perubahan selera.
+Notebooknya `notebooks/03_eksperimen.ipynb`, sudah dijalankan, hasilnya di
+bagian 5. Rencananya berubah dua kali, dan kedua alasannya dicatat di sini
+karena keduanya temuan, bukan perubahan selera.
 
 **Revisi pertama, setelah baseline.** Rencana semula menaruh "naikkan epoch"
 sebagai eksperimen pertama. Itu terbantah oleh baselinenya sendiri. Early
@@ -188,7 +191,12 @@ terlihat, dan diuji di `tests/test_eksperimen.py`.
    terhadap orang yang justru berisiko
 4. Seri diputus akurasi vonis, lalu mAP@0.5:0.95
 
-Perhatikan bahwa mAP ada di urutan terakhir, dan itu disengaja.
+Perhatikan bahwa mAP ada di urutan terakhir, dan itu disengaja. **Aturan ini
+benar-benar diuji oleh hasilnya.** Baseline ternyata punya mAP tertinggi, jadi
+kalau mAP yang dipakai memilih, seluruh eksperimen akan disimpulkan gagal.
+Aturan ini memilih `v3_oversample_nohelmet` yang mAP-nya lebih rendah tapi
+kedua laju kesalahannya lebih kecil. Kalau aturannya diubah sekarang setelah
+angkanya terlihat, ia berhenti menjadi aturan.
 
 Satu celah sempat ada di sini dan sudah ditutup. Catatan v1 dibuat sebelum
 penilaian vonis ada, jadi ia tanpa angka itu dan otomatis tersingkir dari
@@ -212,60 +220,115 @@ dataset kecil. Penurunan itu diterima demi kepatuhan pada instruksi.
 
 ## 5. Hasil
 
-Baseline `v1_baseline_640`, dievaluasi di **test set** dengan `conf=0.001`.
-Bukan di validation, karena validation dipakai memilih checkpoint sehingga
-angkanya sudah menyesuaikan diri.
+Model yang dipakai aplikasi **`v3_oversample_nohelmet`**, dievaluasi di **test
+set** dengan `conf=0.001`. Bukan di validation, karena validation dipakai
+memilih checkpoint sehingga angkanya sudah menyesuaikan diri.
 
-| | mAP@0.5 | mAP@0.5:0.95 |
-|---|---|---|
-| Keseluruhan | **0,722** | **0,370** |
+| Model | imgsz | mAP@0.5 | mAP@0.5:0.95 |
+|---|---|---|---|
+| `v1_baseline_640` | 640 | **0,722** | **0,370** |
+| `v3_oversample_nohelmet` | 960 | 0,684 | 0,334 |
 
-### Per kelas
+**Model terpilih justru mAP-nya lebih rendah daripada baseline.** Itu bukan
+kekeliruan pemilihan, dan bagian berikut menjelaskan kenapa.
 
-| Kelas | Instance | P | R | mAP50 | mAP50-95 | Ketemu | Terlewat |
+### Per kelas, model terpilih
+
+| Kelas | Instance | P | R | mAP50 | mAP50-95 |
+|---|---|---|---|---|---|
+| helmet | 195 | 0,811 | 0,887 | 0,853 | 0,428 |
+| person | 214 | 0,790 | 0,846 | 0,811 | 0,489 |
+| vest | 129 | 0,806 | 0,721 | 0,720 | 0,371 |
+| no-vest | 61 | 0,658 | 0,639 | 0,611 | 0,297 |
+| **no-helmet** | **24** | 0,713 | **0,458** | 0,425 | 0,185 |
+
+### Kenapa mAP turun tapi modelnya tetap yang dipilih
+
+**Eksperimen ini berhasil melakukan persis yang diminta diagnosis hari 3.**
+Waktu itu tertulis bahwa baseline terlalu berhati-hati, precision rata-rata
+0,823 sementara recall 0,658, selisih 16,5 poin, dan untuk sistem keselamatan
+arah itu salah karena melewatkan pelanggaran jauh lebih mahal daripada alarm
+palsu.
+
+| Model | P rata-rata | R rata-rata | Selisih |
+|---|---|---|---|
+| `v1_baseline_640` | 0,823 | 0,658 | **+16,5 poin** |
+| `v2_imgsz960` | 0,712 | 0,699 | +1,4 poin |
+| `v3_oversample_nohelmet` | 0,756 | 0,710 | **+4,5 poin** |
+
+Resolusi 960 menukar precision dengan recall, dan itu memang yang diinginkan.
+mAP menghukum pertukaran itu karena ia memperlakukan kedua jenis kesalahan
+sebagai setara, padahal di sini keduanya tidak setara sama sekali.
+
+Recall naik di empat dari lima kelas. `no-helmet`, kelas paling penting bagi
+keselamatan dan paling lemah sejak awal, naik dari 0,333 ke 0,458.
+
+Oversampling di v3 mengembalikan sebagian precision yang hilang di v2, dari
+0,712 ke 0,756, tanpa mengorbankan recall. Kenaikannya paling besar justru di
+dua kelas yang paling jarang, `no-helmet` 0,535 ke 0,713 dan `no-vest` 0,503 ke
+0,658.
+
+### Hasil seluruh eksperimen
+
+| Run | imgsz | mAP50 | mAP50-95 | R no-helmet | Pembebasan keliru | Tuduhan palsu | Kandidat |
 |---|---|---|---|---|---|---|---|
-| helmet | 195 | 0,867 | 0,837 | 0,876 | 0,434 | 163 | 32 |
-| person | 214 | 0,865 | 0,855 | 0,848 | 0,508 | 183 | 31 |
-| vest | 129 | 0,858 | 0,656 | 0,815 | 0,415 | 85 | 44 |
-| no-vest | 61 | 0,731 | 0,607 | 0,652 | 0,313 | 37 | 24 |
-| **no-helmet** | **24** | 0,793 | **0,333** | **0,421** | 0,182 | **8** | **16** |
+| `v1_baseline_640` | 640 | **0,722** | **0,370** | 0,333 | 0,070 | 0,067 | ya |
+| `v2_imgsz960` | 960 | 0,691 | 0,336 | 0,458 | 0,054 | 0,060 | ya |
+| **`v3_oversample_nohelmet`** | 960 | 0,684 | 0,334 | **0,458** | **0,036** | **0,020** | **terpilih** |
+| `v4_varian_s` | 960 | 0,650 | 0,319 | 0,333 | 0,056 | 0,030 | ya |
+| `v5_dengan_mosaic` | 960 | 0,673 | 0,345 | 0,351 | 0,035 | 0,078 | tidak |
 
-### Tiga hal yang dikatakan angka ini
+Seluruhnya `batch` 16, tidak ada yang terpaksa diturunkan, jadi tiap run
+benar-benar hanya membawa satu perubahan.
 
-**Ramalan dari EDA terbukti persis.** `no-helmet` jadi kelas terburuk dengan
-recall 0,333. Dari 24 pelanggaran helm di test set, model hanya menemukan 8 dan
-melewatkan 16. Ini sudah diperkirakan sejak hari 2, karena kelas itu hanya punya
-94 instance latih. Angkanya sendiri rapuh, 24 instance berarti satu deteksi
-menggeser recall sekitar 4 poin persen.
+### Tiga hal yang dikatakan tabel ini
 
-**Model terlalu berhati-hati, dan itu arah yang salah untuk keselamatan.**
-Rata-rata precision 0,823 sementara recall 0,658, selisih 16,5 poin. Artinya
-model lebih sering melewatkan objek nyata daripada mengarang objek palsu. Untuk
-sistem yang memeriksa keselamatan kerja, melewatkan pelanggaran jauh lebih mahal
-daripada alarm palsu. Confidence threshold aplikasi perlu digeser ke bawah, dan
-angkanya diambil dari kurva F1, bukan dari nilai bawaan 0,25.
+**Varian model lebih besar tidak menolong.** `v4_varian_s` lebih buruk pada
+hampir seluruh ukuran, termasuk kembali jatuh ke recall `no-helmet` 0,333,
+sementara bobotnya 19,25 MB atau 3,5 kali lipat. Ini hasil negatif dan tetap
+dilaporkan. Kapasitas model bukan akar masalah di sini, jumlah contoh latih
+yang jadi masalah.
 
-**Kotaknya ketemu tapi kurang rapat.** mAP@0.5 0,722 berbanding mAP@0.5:0.95
-0,370, selisihnya besar. Itu masalah lokalisasi, bukan pengenalan, dan wajar
-untuk objek sekecil helm.
+**Harga kepatuhan pada SOAL ternyata mendekati nol.** `v5_dengan_mosaic`
+dijalankan justru untuk mengukur berapa mAP yang dikorbankan dengan mematikan
+mosaic. Dibanding `v2` yang identik kecuali mosaic, hasilnya mAP50 **turun**
+dari 0,691 ke 0,673 sementara mAP50-95 naik tipis dari 0,336 ke 0,345.
+Perkiraan umum bahwa mematikan mosaic merugikan mAP pada dataset kecil **tidak
+terbukti di sini**. Precision rata-ratanya bahkan jatuh ke 0,640, terendah dari
+seluruh run.
+
+**Angkanya belum meyakinkan secara statistik, dan itu harus dikatakan.** Selang
+kepercayaan 95 persen metode Wilson untuk ketiga perbaikan utama masih
+bertumpang tindih dengan baseline.
+
+| Ukuran | v1 | v3 | Selang v1 | Selang v3 |
+|---|---|---|---|---|
+| Pembebasan keliru | 4 dari 57 | 2 dari 56 | 0,028 sampai 0,167 | 0,010 sampai 0,121 |
+| Tuduhan palsu | 7 dari 104 | 2 dari 101 | 0,033 sampai 0,132 | 0,005 sampai 0,069 |
+| Recall `no-helmet` | 8 dari 24 | 11 dari 24 | 0,180 sampai 0,533 | 0,279 sampai 0,649 |
+
+Test set 90 gambar terlalu kecil untuk menyatakan satu pun perbaikan itu nyata
+sendiri-sendiri. Yang menopang kesimpulan adalah **arahnya konsisten di banyak
+ukuran yang saling bebas**, recall naik di empat dari lima kelas, selisih
+precision recall menyempit dari 16,5 ke 4,5 poin, dan kedua laju kesalahan
+turun bersamaan.
 
 ### Kecepatan
 
-Dua perangkat, dua angka, karena angka tanpa konteks tidak berarti apa pun.
-
-| Perangkat | Per gambar |
+| Model dan perangkat | Per gambar |
 |---|---|
-| Tesla T4, Colab | preprocess 1,9 ms, inference 15,8 ms, postprocess 3,9 ms |
-| CPU laptop, satu thread torch | median **23 ms**, rentang 20 sampai 31 ms |
+| `v1` di Tesla T4 Colab | preprocess 1,9 ms, inference 15,8 ms, postprocess 3,9 ms |
+| `v1` di CPU laptop, imgsz 640 | median **26 ms** |
+| `v3` di CPU laptop, imgsz 960 | median **51 ms** |
 
-**Panggilan pertama 979 ms**, hampir empat puluh kali median. Itu lazy init
-PyTorch, terjadi sekali per proses, dan bukan cacat. Tapi ia punya akibat nyata
-di aplikasi. Unggahan pertama setelah aplikasi bangun dari tidur akan terasa
-lambat, sedangkan unggahan berikutnya seketika.
+Resolusi 960 menggandakan waktu inference, dan itu harga yang dibayar. Pada
+Streamlit Community Cloud yang hanya CPU, satu gambar masih di bawah
+seperempat detik, jadi masih nyaman dipakai.
 
-Angka median diambil setelah tiga kali pemanasan. Mengukur tanpa membuang
-panggilan pertama menghasilkan rata-rata 508 ms, dan itu menggambarkan lazy
-init, bukan kecepatan modelnya.
+**Panggilan pertama sekitar 900 ms**, hampir empat puluh kali median. Itu lazy
+init PyTorch, terjadi sekali per proses, bukan cacat. Tapi akibatnya nyata,
+unggahan pertama setelah aplikasi bangun dari tidur terasa lambat sedangkan
+berikutnya seketika. Angka median diambil setelah tiga kali pemanasan.
 
 ## 6. Lapisan analisis
 
@@ -376,45 +439,66 @@ vonis dari prediksinya, lalu membandingkannya dengan vonis yang lahir dari
 ground truth. Kotak pekerja dipasangkan lewat IoU 0,5. Ini mengukur sistem utuh
 dari piksel sampai kesimpulan, bukan cuma modelnya.
 
-| Ukuran | Nilai |
-|---|---|
-| Pekerja ground truth / prediksi | 214 / 237 |
-| Berhasil dipasangkan | 187 |
-| Pekerja terlewat / palsu | 27 / 50 |
-| **Vonis benar** | **130 dari 187, 69,5 persen** |
+| Ukuran | `v1_baseline_640` | `v3_oversample_nohelmet` |
+|---|---|---|
+| Pekerja ground truth / prediksi | 214 / 237 | 214 / 219 |
+| Berhasil dipasangkan | 187 | 179 |
+| Pekerja terlewat / palsu | 27 / 50 | 35 / 40 |
+| Vonis benar | 130, 69,5 persen | 119, 66,5 persen |
 
-Matriks vonis, baris ground truth dan kolom prediksi.
+Matriks vonis model terpilih, baris ground truth dan kolom prediksi.
 
 | | pred LENGKAP | pred TIDAK LENGKAP | pred BELUM PASTI |
 |---|---|---|---|
-| **GT LENGKAP** (104) | 75 | 7 | 22 |
-| **GT TIDAK LENGKAP** (57) | 4 | 43 | 10 |
-| **GT BELUM PASTI** (26) | 3 | 11 | 12 |
+| **GT LENGKAP** (101) | 72 | **2** | 27 |
+| **GT TIDAK LENGKAP** (56) | **2** | 34 | 20 |
+| **GT BELUM PASTI** (22) | 4 | 5 | 13 |
+
+Angka di atas hasil menjalankan ulang di CPU. Catatan run dari Colab mencatat
+180 pasangan dan 120 vonis benar, bergeser satu pekerja karena aritmetika float
+GPU dan CPU tidak identik. Selisih sebesar itu tidak mengubah kesimpulan apa
+pun, tapi lebih baik disebut daripada terlihat seperti angka yang tidak cocok.
 
 ### Bukti angka bahwa status ketiga bukan sekadar kehati-hatian
 
 Ketiga jenis kesalahan di matriks itu **biayanya sangat berbeda**, jadi akurasi
-tunggal 69,5 persen menyembunyikan yang penting.
+tunggal menyembunyikan yang penting.
 
-| Jenis kesalahan | Jumlah | Laju |
+| Jenis kesalahan | v1 | v3 |
 |---|---|---|
-| Pembebasan keliru, pelanggar dinyatakan lengkap | 4 dari 57 | **7,0 persen** |
-| Tuduhan palsu, pekerja patuh dinyatakan melanggar | 7 dari 104 | **6,7 persen** |
-| Tuduhan palsu **kalau status ketiga dihapus** | 29 dari 104 | **27,9 persen** |
+| Pembebasan keliru, pelanggar dinyatakan lengkap | 4 dari 57, 7,0 persen | **2 dari 56, 3,6 persen** |
+| Tuduhan palsu, pekerja patuh dinyatakan melanggar | 7 dari 104, 6,7 persen | **2 dari 101, 2,0 persen** |
+| Tuduhan palsu **kalau status ketiga dihapus** | 29 dari 104, 27,9 persen | 29 dari 101, 28,7 persen |
 
 Baris ketiga adalah simulasi sistem dua status, yang terpaksa membaca "tidak
-terdeteksi" sebagai "melanggar". Dari 104 pekerja yang sebenarnya patuh, 29
-akan dituduh melanggar. Dengan status ketiga, angkanya turun menjadi 7.
+terdeteksi" sebagai "melanggar". Dari 101 pekerja yang sebenarnya patuh, 29
+akan dituduh melanggar. Dengan status ketiga, angkanya turun menjadi 2.
 
-**Status ketiga memotong tuduhan palsu dari 27,9 persen menjadi 6,7 persen,
-lebih dari empat kali lipat.** Harganya, 32 pekerja dilempar ke pemeriksaan
-manusia. Untuk sistem keselamatan yang keluarannya bisa berujung teguran
-terhadap orang, pertukaran itu jelas menguntungkan.
+**Status ketiga memotong tuduhan palsu dari 28,7 persen menjadi 2,0 persen,
+empat belas kali lipat.** Untuk sistem keselamatan yang keluarannya bisa
+berujung teguran terhadap orang, pertukaran itu jelas menguntungkan.
 
-Perhatikan juga sebaran kesalahannya. Dari 57 vonis yang meleset, 32 di
-antaranya meleset ke arah "belum dapat dipastikan", yaitu arah yang meminta
-manusia memeriksa, bukan arah yang mengarang kesimpulan. Sistem ini salah
-dengan cara yang aman.
+### Harga yang dibayar, dinyatakan terbuka
+
+Model terpilih lebih berhati-hati, dan kehati-hatian itu ada ongkosnya.
+
+| | v1 | v3 |
+|---|---|---|
+| Pelanggaran yang dinyatakan tegas | 43 dari 57 | **34 dari 56** |
+| Pelanggaran yang dilempar ke pemeriksaan manusia | 10 | **20** |
+| Porsi seluruh pekerja yang perlu diperiksa manusia | 44 dari 187, 23,5 persen | **60 dari 179, 33,5 persen** |
+
+Jadi v3 menyatakan lebih sedikit pelanggaran secara tegas, dan menyerahkan
+lebih banyak kepada manusia. Yang penting, pelanggaran yang dilempar itu
+**tidak hilang**, ia muncul sebagai kotak kuning yang menuntut pemeriksaan.
+Yang benar-benar lolos hanya yang dinyatakan LENGKAP padahal melanggar, dan
+jumlah itu justru turun dari 4 ke 2.
+
+Pertukarannya bisa dinyatakan dalam satu kalimat. **Sepuluh poin persen beban
+pemeriksaan manusia ditukar dengan tuduhan palsu yang turun dari 6,7 ke 2,0
+persen dan pembebasan keliru yang turun dari 7,0 ke 3,6 persen.** Apakah itu
+pantas dibayar adalah keputusan pengawas K3, bukan keputusan model, dan karena
+itu kedua angkanya ditampilkan di aplikasi berdampingan.
 
 ### Uji
 
@@ -555,26 +639,72 @@ tertentu di lapisan analisis.
 sampai 30,4 megapiksel. Aplikasi wajib membatasi ukuran unggahan sebelum masuk
 model, karena gambar 30 megapiksel bisa mematikan server gratis.
 
-`[belum]` Keterbatasan lain yang muncul setelah evaluasi.
+### Yang baru diketahui setelah empat eksperimen
+
+**Kelas `no-helmet` tetap yang terlemah, dan tidak ada yang benar-benar
+menyembuhkannya.** Oversampling menaikkan recall dari 0,333 ke 0,458, dari 8
+menjadi 11 dari 24 pelanggaran helm di test set. Jadi model masih melewatkan
+lebih dari separuhnya. Varian model lebih besar justru mengembalikannya ke
+0,333. Akar masalahnya jumlah contoh latih, bukan kapasitas model, dan itu
+tidak bisa diselesaikan dari sisi training.
+
+**Test setnya terlalu kecil untuk memisahkan perbaikan dari kebetulan.** Selang
+kepercayaan 95 persen untuk ketiga perbaikan utama masih bertumpang tindih
+dengan baseline, tabelnya di bagian 5. Kesimpulan bahwa v3 lebih baik ditopang
+oleh konsistensi arah di banyak ukuran, bukan oleh satu angka yang meyakinkan
+sendirian.
+
+**Model terpilih melempar sepertiga pekerja ke pemeriksaan manusia.** Tepatnya
+33,5 persen, naik dari 23,5 persen pada baseline. Sistem ini mengurangi tuduhan
+palsu dengan cara mengaku tidak tahu lebih sering, dan itu berarti beban
+pemeriksaan manusia bertambah. Rinciannya di bagian 6.
+
+**Resolusi 960 menggandakan waktu inference.** Dari median 26 ms menjadi 51 ms
+di CPU. Masih nyaman, tapi kalau suatu saat aplikasi ini diberi masukan video
+atau batch besar, angka itu yang pertama menjadi penghalang.
+
+**Aplikasi tidak pernah diuji pada foto di luar dataset ini.** Seluruh angka di
+README berasal dari test split Roboflow yang sama sumbernya dengan train.
+Perilakunya pada foto lokasi konstruksi Indonesia, dengan seragam dan warna
+rompi yang berbeda, belum diketahui sama sekali.
 
 ## 9. Cara menjalankan ulang
 
 Urutannya begini, dan tiap langkah berdiri sendiri.
 
 ```
-notebooks/01_eda_dataset.ipynb     pemeriksaan data          [selesai]
-notebooks/02_training.ipynb        training di Google Colab  [siap dijalankan]
-notebooks/03_evaluasi.ipynb        evaluasi dan eksperimen   [belum]
-app.py                             aplikasi Streamlit        [jalan]
+notebooks/01_eda_dataset.ipynb     pemeriksaan data             [selesai]
+notebooks/02_training.ipynb        baseline di Google Colab     [selesai]
+notebooks/03_eksperimen.ipynb      empat run dan pemilihan      [selesai]
+notebooks/04_evaluasi_final.ipynb  confusion matrix dan kurva   [belum]
+skrip/validasi_analitik.py         vonis dibanding ground truth [selesai]
+app.py                             aplikasi Streamlit           [jalan]
 ```
 
 **EDA.** `01_eda_dataset.ipynb` mencari zip dataset di tiga lokasi, Google Drive
 di `MyDrive/capstone4/`, direktori kerja, dan folder `pilihan dataset dan aturan`.
 Tidak butuh GPU. Hasilnya disimpan ke `laporan/eda_ringkasan.json`.
 
-**Training.** `02_training.ipynb` dijalankan di Colab dengan GPU T4. Unggah zip
-dataset ke `MyDrive/capstone4/` lebih dulu. Keluarannya bobot dan berkas catatan
-versi, keduanya tersimpan ke Drive.
+**Training baseline.** `02_training.ipynb` dijalankan di Colab dengan GPU T4.
+Unggah zip dataset ke `MyDrive/capstone4/` lebih dulu. Keluarannya bobot dan
+berkas catatan versi, keduanya tersimpan ke Drive.
+
+**Eksperimen.** `03_eksperimen.ipynb` menjalankan empat run, masing-masing satu
+perubahan, lalu menilai keduanya dengan mAP dan dengan vonis per pekerja. Ia
+mengkloning repo ini supaya memakai `src/analitik.py` yang sama dengan
+aplikasi, bukan salinan yang bisa menyimpang. Tiap run menyimpan catatannya ke
+Drive dan dilewati kalau catatannya sudah ada, jadi sesi Colab yang mati di
+tengah jalan tidak memaksa mengulang dari awal.
+
+**Validasi lapisan analisis.** Butuh dataset terekstrak di komputer sendiri.
+
+```bash
+.venv-uji/bin/python skrip/validasi_analitik.py /jalur/ke/dataset
+```
+
+Tanpa argumen kedua, ia memakai bobot pertama di `models/`, yang juga menjadi
+pilihan bawaan aplikasi, dan resolusinya diambil dari catatan versi bobot itu.
+Hasilnya ditulis ke `laporan/validasi_analitik.json`.
 
 **Aplikasi di komputer sendiri.**
 
@@ -602,7 +732,8 @@ capstone4-apd-konstruksi/
 ├── vendor/
 │   └── opencv-python-stub/ pengalih ke headless, tanpa kode  [selesai]
 ├── models/
-│   └── apd_v1_baseline_640.pt  5,47 MB          [selesai]
+│   ├── apd_v3_oversample_nohelmet.pt  5,54 MB, dipakai  [selesai]
+│   └── apd_v1_baseline_640.pt  5,47 MB, pembanding  [selesai]
 ├── src/
 │   ├── detector.py         pemuatan model dan inference   [selesai]
 │   ├── analitik.py         logika analisis, tanpa impor Streamlit  [selesai]
@@ -619,12 +750,13 @@ capstone4-apd-konstruksi/
 ├── notebooks/
 │   ├── 01_eda_dataset.ipynb  lima pemeriksaan data       [selesai]
 │   ├── 02_training.ipynb     training baseline, berisi output  [selesai]
-│   ├── 03_eksperimen.ipynb   empat run hari 8 sampai 10  [siap dijalankan]
+│   ├── 03_eksperimen.ipynb   empat run hari 8 sampai 10  [selesai]
 │   └── 04_evaluasi_final.ipynb  confusion matrix dan kurva PR  [belum]
 ├── contoh_gambar/          tiga gambar demo dari test split  [selesai]
 └── laporan/
     ├── eda_ringkasan.json  angka EDA, dikutip README      [selesai]
-    ├── v1_baseline_640_catatan.json  catatan versi model  [selesai]
+    ├── v1..v5_catatan.json  catatan lima run training     [selesai]
+    ├── perbandingan_run.json  tabel dan alasan pemilihan  [selesai]
     └── validasi_analitik.json  angka validasi asosiasi    [selesai]
 ```
 

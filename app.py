@@ -34,7 +34,7 @@ from src.detector import (  # noqa: E402
 )
 
 MODEL_CADANGAN = "yolo11n.pt"
-IMGSZ_LATIH = 640
+IMGSZ_BAWAAN = 640      # dipakai hanya kalau catatan versi modelnya tidak ada
 
 st.set_page_config(
     page_title="Pemeriksaan APD Konstruksi",
@@ -118,6 +118,16 @@ with st.sidebar:
     st.subheader("Model")
     nama_model = st.selectbox("Bobot", tersedia or [MODEL_CADANGAN], index=0)
 
+    # Resolusi bawaan diambil dari catatan versi model yang sedang dipilih,
+    # bukan dari satu angka tetap. Sejak hari 10 ada dua bobot dengan resolusi
+    # berbeda di repo ini, dan menyamakan keduanya pada satu angka akan
+    # menjalankan salah satunya di skala yang bukan skala latihnya, tanpa ada
+    # error apa pun yang muncul.
+    catatan = catatan_model(nama_model)
+    imgsz_latih = int(catatan.get("imgsz", IMGSZ_BAWAAN))
+    if imgsz_latih not in (640, 960):
+        imgsz_latih = IMGSZ_BAWAAN
+
     st.subheader("Parameter deteksi")
     conf = st.slider(
         "Confidence threshold",
@@ -144,17 +154,18 @@ with st.sidebar:
     imgsz = st.select_slider(
         "Ukuran masukan model",
         options=[640, 960],
-        value=IMGSZ_LATIH,
+        value=imgsz_latih,
         help=(
             "Samakan dengan nilai saat training. Nilai berbeda menggeser skala "
-            "objek terhadap apa yang dipelajari model."
+            "objek terhadap apa yang dipelajari model. Nilai bawaannya sudah "
+            "mengikuti bobot yang dipilih di atas."
         ),
     )
-    if imgsz != IMGSZ_LATIH:
+    if imgsz != imgsz_latih:
         st.caption(
-            f"Model ini dilatih pada {IMGSZ_LATIH}. Menaikkannya bisa menolong "
-            f"objek kecil, tapi hasilnya belum tentu lebih baik karena skalanya "
-            f"tidak lagi sama dengan saat training."
+            f"Bobot `{nama_model}` dilatih pada {imgsz_latih}, dan sekarang "
+            f"dijalankan pada {imgsz}. Hasilnya belum tentu lebih baik, karena "
+            f"skala objeknya tidak lagi sama dengan yang dipelajari model."
         )
 
     st.subheader("Tampilan")
@@ -186,7 +197,7 @@ if not berkas:
         "Unggah sebuah gambar untuk memulai. Bisa beberapa sekaligus, dan "
         "totalnya akan muncul di panel kiri."
     )
-    tampilan.panel_model(catatan_model(nama_model))
+    tampilan.panel_model(catatan)
     st.stop()
 
 # Sesi dibangun ulang dari seluruh berkas yang sedang terunggah, bukan
@@ -299,4 +310,4 @@ if len(berkas) > 1:
     k3.metric("Tidak lengkap", total.tidak_lengkap)
     k4.metric("Belum dapat dipastikan", total.belum_pasti)
 
-tampilan.panel_model(catatan_model(nama_model))
+tampilan.panel_model(catatan)

@@ -1,0 +1,81 @@
+{
+  "terpilih": "v3_oversample_nohelmet",
+  "alasan": "Terpilih v3_oversample_nohelmet. Laju pembebasan keliru 0.0357, terendah di antara 4 run yang lolos penjaga cakupan. Akurasi vonis 0.6667, cakupan pekerja 0.8411, mAP@0.5:0.95 0.3342.",
+  "run": [
+    {
+      "run": "v1_baseline_640",
+      "kandidat": true,
+      "model_awal": "yolo11n.pt",
+      "imgsz": 640,
+      "epoch_berjalan": 27,
+      "epoch_terbaik": 17,
+      "map50": 0.7224,
+      "map50_95": 0.3704,
+      "R_no_helmet": 0.3333,
+      "akurasi_vonis": 0.6952,
+      "laju_pembebasan_keliru": 0.0702,
+      "laju_tuduhan_palsu": 0.0673,
+      "cakupan_pekerja": 0.8738
+    },
+    {
+      "run": "v2_imgsz960",
+      "kandidat": true,
+      "model_awal": "yolo11n.pt",
+      "imgsz": 960,
+      "epoch_berjalan": 36,
+      "epoch_terbaik": 16,
+      "map50": 0.6909,
+      "map50_95": 0.3359,
+      "R_no_helmet": 0.4583,
+      "akurasi_vonis": 0.6776,
+      "laju_pembebasan_keliru": 0.0536,
+      "laju_tuduhan_palsu": 0.06,
+      "cakupan_pekerja": 0.8551
+    },
+    {
+      "run": "v3_oversample_nohelmet",
+      "kandidat": true,
+      "model_awal": "yolo11n.pt",
+      "imgsz": 960,
+      "epoch_berjalan": 69,
+      "epoch_terbaik": 49,
+      "map50": 0.6843,
+      "map50_95": 0.3342,
+      "R_no_helmet": 0.4583,
+      "akurasi_vonis": 0.6667,
+      "laju_pembebasan_keliru": 0.0357,
+      "laju_tuduhan_palsu": 0.0198,
+      "cakupan_pekerja": 0.8411
+    },
+    {
+      "run": "v4_varian_s",
+      "kandidat": true,
+      "model_awal": "yolo11s.pt",
+      "imgsz": 960,
+      "epoch_berjalan": 50,
+      "epoch_terbaik": 30,
+      "map50": 0.6503,
+      "map50_95": 0.3187,
+      "R_no_helmet": 0.3333,
+      "akurasi_vonis": 0.6742,
+      "laju_pembebasan_keliru": 0.0556,
+      "laju_tuduhan_palsu": 0.0303,
+      "cakupan_pekerja": 0.8318
+    },
+    {
+      "run": "v5_dengan_mosaic",
+      "kandidat": false,
+      "model_awal": "yolo11n.pt",
+      "imgsz": 960,
+      "epoch_berjalan": 37,
+      "epoch_terbaik": 17,
+      "map50": 0.6732,
+      "map50_95": 0.3445,
+      "R_no_helmet": 0.351,
+      "akurasi_vonis": 0.6831,
+      "laju_pembebasan_keliru": 0.0351,
+      "laju_tuduhan_palsu": 0.0784,
+      "cakupan_pekerja": 0.8551
+    }
+  ]
+}

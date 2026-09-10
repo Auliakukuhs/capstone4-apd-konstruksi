@@ -279,8 +279,7 @@ def bagian_dua(
 
 def main() -> int:
     if len(sys.argv) < 2:
-        print(__doc__.strip().splitlines()[-4])
-        print("pemakaian: python skrip/validasi_analitik.py /jalur/ke/dataset")
+        print("pemakaian: python skrip/validasi_analitik.py /jalur/ke/dataset [nama_bobot]")
         return 2
 
     akar_data = Path(sys.argv[1])
@@ -298,7 +297,22 @@ def main() -> int:
 
     print("\nBagian 2, vonis prediksi model dibanding vonis ground truth")
     try:
-        laporan["prediksi_model"] = bagian_dua(label, "apd_v1_baseline_640.pt")
+        from src.detector import daftar_model
+
+        # Bobot pertama dari daftar, yaitu yang juga menjadi pilihan bawaan
+        # aplikasi, kecuali kalau namanya diberikan di argumen kedua.
+        nama = sys.argv[2] if len(sys.argv) > 2 else (daftar_model() or [""])[0]
+        assert nama, "tidak ada bobot di models/"
+
+        # Resolusi mengikuti catatan versi bobot itu, bukan angka tetap, sebab
+        # sejak hari 10 ada bobot 640 dan bobot 960 di repo yang sama.
+        catatan = AKAR / "laporan" / f"{Path(nama).stem.removeprefix('apd_')}_catatan.json"
+        ukuran = IMGSZ
+        if catatan.exists():
+            ukuran = int(json.loads(catatan.read_text(encoding="utf-8")).get("imgsz", IMGSZ))
+        print(f"  bobot {nama}, imgsz {ukuran}")
+
+        laporan["prediksi_model"] = bagian_dua(label, nama, imgsz=ukuran)
         for k, v in laporan["prediksi_model"].items():
             print(f"  {k:34} {v}")
     except ImportError as e:

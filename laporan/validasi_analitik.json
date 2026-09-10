@@ -21,42 +21,43 @@
     }
   },
   "prediksi_model": {
-    "model": "apd_v1_baseline_640.pt",
+    "model": "apd_v3_oversample_nohelmet.pt",
     "conf": 0.25,
     "iou_nms": 0.7,
-    "imgsz": 640,
+    "imgsz": 960,
     "iou_pasangan": 0.5,
     "person_ground_truth": 214,
-    "person_prediksi": 237,
-    "pekerja_terpasangkan": 187,
-    "vonis_benar": 130,
-    "akurasi_vonis": 0.6952,
-    "pekerja_terlewat": 27,
-    "pekerja_palsu": 50,
+    "person_prediksi": 219,
+    "pekerja_terpasangkan": 179,
+    "vonis_benar": 119,
+    "akurasi_vonis": 0.6648,
+    "cakupan_pekerja": 0.8364,
+    "pekerja_terlewat": 35,
+    "pekerja_palsu": 40,
     "matriks_vonis": {
       "LENGKAP": {
-        "LENGKAP": 75,
-        "TIDAK LENGKAP": 7,
-        "BELUM DAPAT DIPASTIKAN": 22
+        "LENGKAP": 72,
+        "TIDAK LENGKAP": 2,
+        "BELUM DAPAT DIPASTIKAN": 27
       },
       "TIDAK LENGKAP": {
-        "LENGKAP": 4,
-        "TIDAK LENGKAP": 43,
-        "BELUM DAPAT DIPASTIKAN": 10
+        "LENGKAP": 2,
+        "TIDAK LENGKAP": 34,
+        "BELUM DAPAT DIPASTIKAN": 20
       },
       "BELUM DAPAT DIPASTIKAN": {
-        "LENGKAP": 3,
-        "TIDAK LENGKAP": 11,
-        "BELUM DAPAT DIPASTIKAN": 12
+        "LENGKAP": 4,
+        "TIDAK LENGKAP": 5,
+        "BELUM DAPAT DIPASTIKAN": 13
       }
     },
-    "pekerja_patuh_terpasangkan": 104,
-    "pekerja_melanggar_terpasangkan": 57,
-    "tuduhan_palsu": 7,
-    "laju_tuduhan_palsu": 0.0673,
+    "pekerja_patuh_terpasangkan": 101,
+    "pekerja_melanggar_terpasangkan": 56,
+    "tuduhan_palsu": 2,
+    "laju_tuduhan_palsu": 0.0198,
     "tuduhan_palsu_kalau_hanya_dua_status": 29,
-    "laju_tuduhan_palsu_dua_status": 0.2788,
-    "pembebasan_keliru": 4,
-    "laju_pembebasan_keliru": 0.0702
+    "laju_tuduhan_palsu_dua_status": 0.2871,
+    "pembebasan_keliru": 2,
+    "laju_pembebasan_keliru": 0.0357
   }
 }

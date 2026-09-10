@@ -1,0 +1,104 @@
+{
+  "run": "v2_imgsz960",
+  "kandidat": true,
+  "model_awal": "yolo11n.pt",
+  "imgsz": 960,
+  "epochs": 100,
+  "epochs_berjalan": 36,
+  "epoch_terbaik": 16,
+  "patience": 20,
+  "batch": 16,
+  "batch_diminta": 16,
+  "seed": 0,
+  "waktu_training_menit": 23.1,
+  "berhenti": "early stopping",
+  "ultralytics": "8.4.138",
+  "torch": "2.11.0+cu128",
+  "python": "3.13.15",
+  "gpu": "Tesla T4",
+  "ukuran_bobot_mb": 5.54,
+  "split_dilaporkan": "test",
+  "conf_evaluasi": 0.001,
+  "map50": 0.6909,
+  "map50_95": 0.3359,
+  "per_kelas": {
+    "helmet": {
+      "P": 0.8397,
+      "R": 0.8615,
+      "mAP50": 0.8492,
+      "mAP50_95": 0.4101
+    },
+    "no-helmet": {
+      "P": 0.5353,
+      "R": 0.4583,
+      "mAP50": 0.4374,
+      "mAP50_95": 0.159
+    },
+    "no-vest": {
+      "P": 0.5026,
+      "R": 0.6393,
+      "mAP50": 0.5548,
+      "mAP50_95": 0.236
+    },
+    "person": {
+      "P": 0.8263,
+      "R": 0.8411,
+      "mAP50": 0.81,
+      "mAP50_95": 0.4518
+    },
+    "vest": {
+      "P": 0.8562,
+      "R": 0.6924,
+      "mAP50": 0.8033,
+      "mAP50_95": 0.4223
+    }
+  },
+  "kecepatan_ms": {
+    "preprocess": 2.7,
+    "inference": 12.9,
+    "loss": 0.0,
+    "postprocess": 2.7
+  },
+  "augmentasi_geometris_mati": true,
+  "mosaic": 0.0,
+  "vonis_test": {
+    "model": "/content/runs_capstone/v2_imgsz960/weights/best.pt",
+    "conf": 0.25,
+    "iou_nms": 0.7,
+    "imgsz": 960,
+    "iou_pasangan": 0.5,
+    "person_ground_truth": 214,
+    "person_prediksi": 228,
+    "pekerja_terpasangkan": 183,
+    "vonis_benar": 124,
+    "akurasi_vonis": 0.6776,
+    "cakupan_pekerja": 0.8551,
+    "pekerja_terlewat": 31,
+    "pekerja_palsu": 45,
+    "matriks_vonis": {
+      "LENGKAP": {
+        "LENGKAP": 70,
+        "TIDAK LENGKAP": 6,
+        "BELUM DAPAT DIPASTIKAN": 24
+      },
+      "TIDAK LENGKAP": {
+        "LENGKAP": 3,
+        "TIDAK LENGKAP": 42,
+        "BELUM DAPAT DIPASTIKAN": 11
+      },
+      "BELUM DAPAT DIPASTIKAN": {
+        "LENGKAP": 4,
+        "TIDAK LENGKAP": 11,
+        "BELUM DAPAT DIPASTIKAN": 12
+      }
+    },
+    "pekerja_patuh_terpasangkan": 100,
+    "pekerja_melanggar_terpasangkan": 56,
+    "tuduhan_palsu": 6,
+    "laju_tuduhan_palsu": 0.06,
+    "tuduhan_palsu_kalau_hanya_dua_status": 30,
+    "laju_tuduhan_palsu_dua_status": 0.3,
+    "pembebasan_keliru": 3,
+    "laju_pembebasan_keliru": 0.0536
+  }
+}

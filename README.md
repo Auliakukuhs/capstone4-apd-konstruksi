@@ -3,7 +3,7 @@
 Capstone Project Module 4, Purwadhika Digital Technology School.
 Object detection untuk memeriksa kelengkapan alat pelindung diri di lokasi konstruksi.
 
-> Status pengerjaan: **hari 11 dari 15**. Bagian yang ditandai `[belum]` diisi
+> Status pengerjaan: **hari 12 dari 15**. Bagian yang ditandai `[belum]` diisi
 > sesuai urutan di `../catatan/URUTAN-KERJA.md`.
 >
 > Aplikasinya lengkap dan hidup di Streamlit Community Cloud, lapisan
@@ -14,9 +14,11 @@ Object detection untuk memeriksa kelengkapan alat pelindung diri di lokasi konst
 > baseline, dan itu disengaja.** Alasannya di bagian 5.
 >
 > Evaluasi final sudah dijalankan, termasuk confusion matrix, sapuan confidence
-> threshold, dan analisis kegagalan. 74 uji lolos.
+> threshold, dan analisis kegagalan. 74 uji lolos, tidak ada kredensial di repo,
+> dan notebook 01 serta 04 menghasilkan angka yang sama saat dijalankan ulang
+> dari atas ke bawah.
 >
-> Sisa pekerjaan hari 12 sampai 15, yaitu poles, naskah video, rekaman, dan
+> Sisa pekerjaan hari 13 sampai 15, yaitu naskah video, rekaman, dan
 > pengumpulan.
 
 ## 1. Masalah yang diselesaikan
@@ -701,7 +703,7 @@ sehingga pemeriksaan `AppTest` biasa akan melewatkannya.
 ### Gambar contoh untuk demo
 
 Tiga berkas di `contoh_gambar/`, seluruhnya dari test split. Yang ketiga adalah
-yang paling layak ditunjukkan di video, tiga belas orang yang di mata manusia
+yang paling banyak memperlihatkan perilaku sistem, tiga belas orang yang di mata manusia
 jelas memakai APD lengkap tapi hanya empat yang bisa dipastikan model. Dua angka
 kepatuhannya 23,1 dan 75,0 persen, dan jarak itu adalah ukuran kerusakan yang
 dicegah status ketiga. Rinciannya di `contoh_gambar/README.md`.

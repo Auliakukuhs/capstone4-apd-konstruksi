@@ -13,8 +13,8 @@ angkanya ikut berubah.
 600 x 399. Delapan pekerja terdeteksi, enam melanggar, dua belum dapat
 dipastikan. Kepatuhan 0,0 persen, banner merah.
 
-Yang layak ditunjuk saat demo adalah pekerja berkaus putih di kanan, yang jelas
-tidak memakai rompi dan memang divonis begitu, dengan kotak `no-vest` sebagai
+Kasus paling jelas di gambar ini adalah pekerja berkaus putih di kanan, yang tidak
+memakai rompi dan memang divonis begitu, dengan kotak `no-vest` sebagai
 buktinya.
 
 ## 2. `02_seluruhnya_lengkap.jpg`
@@ -47,17 +47,18 @@ Jarak antara 46,2 dan 85,7 adalah ukuran kerusakan yang dicegah status ketiga.
 ### Satu tuduhan palsu, terlihat langsung di layar
 
 Pekerja **#12 divonis TIDAK LENGKAP** karena mendapat kotak `no-helmet` dengan
-confidence 0,85. Lihat fotonya, orang itu memakai helm putih.
+confidence 0,85. Pada fotonya, orang itu memakai helm putih.
 
-Lalu perhatikan kotak ungu di sebelahnya, `helmet` dengan confidence 0,91 yang
-**tidak dapat dikaitkan ke satu pekerja pun**. Kemungkinan besar helm itu
+Di sebelahnya ada kotak ungu, `helmet` dengan confidence 0,91, yang **tidak
+dapat dikaitkan ke satu pekerja pun**. Kemungkinan besar helm itu
 miliknya, dan `no-helmet` itu deteksi palsu.
 
-Jangan tutupi bagian ini saat merekam video. Justru inilah yang membuat laju
-tuduhan palsu 2,0 persen di README menjadi angka yang berarti, bukan klaim.
-Dan perhatikan bahwa sistem melaporkan kejanggalannya sendiri, lewat kotak
-ungu dan lewat kolom bukti di tabel, sehingga pengawas punya alasan untuk
-meragukan vonis itu tanpa harus mempercayai atau menolaknya buta.
+Kasus ini dicatat justru karena ia membuat laju tuduhan palsu 2,0 persen di
+README menjadi angka yang berarti, bukan klaim.
+
+Yang penting, sistem melaporkan kejanggalannya sendiri, lewat kotak ungu dan
+lewat kolom bukti di tabel. Pengawas punya dasar untuk meragukan vonis itu
+tanpa harus mempercayai atau menolaknya buta.
 
 ### Perbedaan terhadap baseline
 
@@ -72,5 +73,5 @@ sampai 200 yang dikenal model, jadi tidak ada yang memicu peringatan
 pencahayaan. Gambar ketiga foto malam berlampu sorot dan nilainya 64, tepat di
 atas batas bawah.
 
-Kalau ingin memperlihatkan peringatan itu bekerja saat merekam, unggah foto
-yang lebih gelap dari ini.
+Peringatan pencahayaan baru menyala pada foto yang lebih gelap daripada
+ketiganya.

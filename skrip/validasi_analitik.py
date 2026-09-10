@@ -159,6 +159,89 @@ def bagian_satu(berkas_label: list) -> dict:
     }
 
 
+def nilai_vonis(pasangan_gambar) -> dict:
+    """Bandingkan vonis prediksi terhadap vonis ground truth, per pekerja.
+
+    Terpisah dari inference dengan sengaja. Sapuan confidence di
+    `notebooks/04_evaluasi_final.ipynb` menjalankan model sekali lalu menyaring
+    deteksinya di Python untuk belasan ambang, dan penilaian tiap ambang harus
+    memakai kode yang sama persis dengan yang dipakai laporan. Kalau notebook
+    menyalin logika ini, salinannya akan menyimpang cepat atau lambat dan
+    angka di laporan menjadi angka dari dua sistem yang berbeda.
+
+    Args:
+        pasangan_gambar: iterable berisi pasangan (hasil prediksi, hasil acuan),
+            keduanya HasilGambar keluaran `src.analitik.asosiasi`.
+    """
+    matriks = {a: dict.fromkeys(VONIS, 0) for a in VONIS}
+    benar = total_pasangan = 0
+    acuan_tak_terpasangkan = prediksi_tak_terpasangkan = 0
+    total_acuan = total_prediksi = 0
+
+    for hasil_prediksi, hasil_acuan in pasangan_gambar:
+        total_acuan += len(hasil_acuan.pekerja)
+        total_prediksi += len(hasil_prediksi.pekerja)
+
+        pasangan = pasangkan(hasil_prediksi.pekerja, hasil_acuan.pekerja)
+        for i, j in pasangan:
+            v_pred = hasil_prediksi.pekerja[i].vonis
+            v_acuan = hasil_acuan.pekerja[j].vonis
+            matriks[v_acuan][v_pred] += 1
+            total_pasangan += 1
+            if v_pred == v_acuan:
+                benar += 1
+
+        acuan_tak_terpasangkan += len(hasil_acuan.pekerja) - len(pasangan)
+        prediksi_tak_terpasangkan += len(hasil_prediksi.pekerja) - len(pasangan)
+
+    # Tiga angka turunan yang lebih berguna daripada akurasi tunggal, karena
+    # ketiga jenis kesalahan di sini biayanya sangat berbeda.
+    gt_patuh = sum(matriks[LENGKAP].values())
+    gt_langgar = sum(matriks[TIDAK_LENGKAP].values())
+
+    tuduhan_palsu = matriks[LENGKAP][TIDAK_LENGKAP]
+    # Kalau status ketiga dihapus, "tidak terdeteksi" terpaksa dibaca sebagai
+    # melanggar. Inilah harga yang dibayar sistem dua status.
+    tuduhan_palsu_dua_status = tuduhan_palsu + matriks[LENGKAP][PERLU_DIPERIKSA]
+    pembebasan_keliru = matriks[TIDAK_LENGKAP][LENGKAP]
+
+    # Berapa banyak pekerja yang dilempar ke pemeriksaan manusia. Ini ongkos
+    # dari kehati-hatian, dan harus ikut terlihat supaya pertukarannya jujur.
+    perlu_manusia = sum(matriks[a][PERLU_DIPERIKSA] for a in VONIS)
+
+    return {
+        "iou_pasangan": IOU_PASANGAN,
+        "person_ground_truth": total_acuan,
+        "person_prediksi": total_prediksi,
+        "pekerja_terpasangkan": total_pasangan,
+        "vonis_benar": benar,
+        "akurasi_vonis": round(benar / total_pasangan, 4) if total_pasangan else None,
+        # Penjaga. Model yang hampir tidak mendeteksi apa pun bisa terlihat
+        # unggul pada laju kesalahan, karena penyebutnya menyusut. Cakupan
+        # ini yang mencegah pembacaan itu.
+        "cakupan_pekerja": round(total_pasangan / total_acuan, 4) if total_acuan else None,
+        "pekerja_terlewat": acuan_tak_terpasangkan,
+        "pekerja_palsu": prediksi_tak_terpasangkan,
+        "matriks_vonis": matriks,
+        "pekerja_patuh_terpasangkan": gt_patuh,
+        "pekerja_melanggar_terpasangkan": gt_langgar,
+        "tuduhan_palsu": tuduhan_palsu,
+        "laju_tuduhan_palsu": round(tuduhan_palsu / gt_patuh, 4) if gt_patuh else None,
+        "tuduhan_palsu_kalau_hanya_dua_status": tuduhan_palsu_dua_status,
+        "laju_tuduhan_palsu_dua_status": round(tuduhan_palsu_dua_status / gt_patuh, 4)
+        if gt_patuh
+        else None,
+        "pembebasan_keliru": pembebasan_keliru,
+        "laju_pembebasan_keliru": round(pembebasan_keliru / gt_langgar, 4)
+        if gt_langgar
+        else None,
+        "perlu_pemeriksaan_manusia": perlu_manusia,
+        "porsi_perlu_pemeriksaan_manusia": round(perlu_manusia / total_pasangan, 4)
+        if total_pasangan
+        else None,
+    }
+
+
 def bagian_dua(
     berkas_label: list,
     nama_model: str,
@@ -179,11 +262,7 @@ def bagian_dua(
     from src.detector import deteksi as jalankan, muat_model
 
     model = muat_model(nama_model)
-
-    matriks = {a: dict.fromkeys(VONIS, 0) for a in VONIS}
-    benar = total_pasangan = 0
-    acuan_tak_terpasangkan = prediksi_tak_terpasangkan = 0
-    total_acuan = total_prediksi = 0
+    pasangan_gambar = []
 
     for jalur_label in berkas_label:
         jalur_gambar = None
@@ -215,65 +294,14 @@ def bagian_dua(
             }
             for d in mentah
         ]
-
-        hasil_acuan = asosiasi(muat_label(jalur_label))
-        hasil_prediksi = asosiasi(prediksi)
-        total_acuan += len(hasil_acuan.pekerja)
-        total_prediksi += len(hasil_prediksi.pekerja)
-
-        pasangan = pasangkan(hasil_prediksi.pekerja, hasil_acuan.pekerja)
-        for i, j in pasangan:
-            v_pred = hasil_prediksi.pekerja[i].vonis
-            v_acuan = hasil_acuan.pekerja[j].vonis
-            matriks[v_acuan][v_pred] += 1
-            total_pasangan += 1
-            if v_pred == v_acuan:
-                benar += 1
-
-        acuan_tak_terpasangkan += len(hasil_acuan.pekerja) - len(pasangan)
-        prediksi_tak_terpasangkan += len(hasil_prediksi.pekerja) - len(pasangan)
-
-    # Tiga angka turunan yang lebih berguna daripada akurasi tunggal, karena
-    # ketiga jenis kesalahan di sini biayanya sangat berbeda.
-    gt_patuh = sum(matriks[LENGKAP].values())
-    gt_langgar = sum(matriks[TIDAK_LENGKAP].values())
-
-    tuduhan_palsu = matriks[LENGKAP][TIDAK_LENGKAP]
-    # Kalau status ketiga dihapus, "tidak terdeteksi" terpaksa dibaca sebagai
-    # melanggar. Inilah harga yang dibayar sistem dua status.
-    tuduhan_palsu_dua_status = tuduhan_palsu + matriks[LENGKAP][PERLU_DIPERIKSA]
-    pembebasan_keliru = matriks[TIDAK_LENGKAP][LENGKAP]
+        pasangan_gambar.append((asosiasi(prediksi), asosiasi(muat_label(jalur_label))))
 
     return {
         "model": nama_model,
         "conf": conf,
         "iou_nms": iou,
         "imgsz": imgsz,
-        "iou_pasangan": IOU_PASANGAN,
-        "person_ground_truth": total_acuan,
-        "person_prediksi": total_prediksi,
-        "pekerja_terpasangkan": total_pasangan,
-        "vonis_benar": benar,
-        "akurasi_vonis": round(benar / total_pasangan, 4) if total_pasangan else None,
-        # Penjaga. Model yang hampir tidak mendeteksi apa pun bisa terlihat
-        # unggul pada laju kesalahan, karena penyebutnya menyusut. Cakupan
-        # ini yang mencegah pembacaan itu.
-        "cakupan_pekerja": round(total_pasangan / total_acuan, 4) if total_acuan else None,
-        "pekerja_terlewat": acuan_tak_terpasangkan,
-        "pekerja_palsu": prediksi_tak_terpasangkan,
-        "matriks_vonis": matriks,
-        "pekerja_patuh_terpasangkan": gt_patuh,
-        "pekerja_melanggar_terpasangkan": gt_langgar,
-        "tuduhan_palsu": tuduhan_palsu,
-        "laju_tuduhan_palsu": round(tuduhan_palsu / gt_patuh, 4) if gt_patuh else None,
-        "tuduhan_palsu_kalau_hanya_dua_status": tuduhan_palsu_dua_status,
-        "laju_tuduhan_palsu_dua_status": round(tuduhan_palsu_dua_status / gt_patuh, 4)
-        if gt_patuh
-        else None,
-        "pembebasan_keliru": pembebasan_keliru,
-        "laju_pembebasan_keliru": round(pembebasan_keliru / gt_langgar, 4)
-        if gt_langgar
-        else None,
+        **nilai_vonis(pasangan_gambar),
     }
 
 

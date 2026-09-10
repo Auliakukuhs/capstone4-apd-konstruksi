@@ -58,6 +58,8 @@
     "tuduhan_palsu_kalau_hanya_dua_status": 29,
     "laju_tuduhan_palsu_dua_status": 0.2871,
     "pembebasan_keliru": 2,
-    "laju_pembebasan_keliru": 0.0357
+    "laju_pembebasan_keliru": 0.0357,
+    "perlu_pemeriksaan_manusia": 60,
+    "porsi_perlu_pemeriksaan_manusia": 0.3352
   }
 }

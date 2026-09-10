@@ -3,7 +3,7 @@
 Capstone Project Module 4, Purwadhika Digital Technology School.
 Object detection untuk memeriksa kelengkapan alat pelindung diri di lokasi konstruksi.
 
-> Status pengerjaan: **hari 10 dari 15**. Bagian yang ditandai `[belum]` diisi
+> Status pengerjaan: **hari 11 dari 15**. Bagian yang ditandai `[belum]` diisi
 > sesuai urutan di `../catatan/URUTAN-KERJA.md`.
 >
 > Aplikasinya lengkap dan hidup di Streamlit Community Cloud, lapisan
@@ -13,8 +13,11 @@ Object detection untuk memeriksa kelengkapan alat pelindung diri di lokasi konst
 > Model yang dipakai `v3_oversample_nohelmet`. **mAP-nya lebih rendah daripada
 > baseline, dan itu disengaja.** Alasannya di bagian 5.
 >
-> Sisa pekerjaan hari 11 sampai 15, yaitu evaluasi final, poles, naskah video,
-> rekaman, dan pengumpulan.
+> Evaluasi final sudah dijalankan, termasuk confusion matrix, sapuan confidence
+> threshold, dan analisis kegagalan. 74 uji lolos.
+>
+> Sisa pekerjaan hari 12 sampai 15, yaitu poles, naskah video, rekaman, dan
+> pengumpulan.
 
 ## 1. Masalah yang diselesaikan
 
@@ -313,22 +316,64 @@ ukuran yang saling bebas**, recall naik di empat dari lima kelas, selisih
 precision recall menyempit dari 16,5 ke 4,5 poin, dan kedua laju kesalahan
 turun bersamaan.
 
+### Confusion matrix, kesalahannya tidak acak
+
+![Confusion matrix ternormalkan](laporan/gambar/confusion_matrix_normalized.png)
+
+Dihasilkan `notebooks/04_evaluasi_final.ipynb`, dinormalkan, kolom kebenaran
+dan baris dugaan. Yang penting bukan diagonalnya melainkan yang di luar
+diagonal, karena di situlah letak kesalahan yang berbahaya.
+
+| Kelas sebenarnya | Ditebak benar | Ditebak kelas lawannya | Terlewat jadi background |
+|---|---|---|---|
+| helmet | 0,94 | | 0,04 |
+| **no-helmet** | **0,46** | **0,21 dikira helmet** | **0,29** |
+| vest | 0,71 | 0,16 dikira no-vest | 0,10 |
+| no-vest | 0,67 | 0,18 dikira vest | 0,07 |
+| person | 0,88 | | 0,07 |
+
+**Tiga hal yang hanya terlihat di sini.**
+
+Pertama, `no-helmet` bukan sekadar sering terlewat, ia juga **sering dikira
+helmet**. Dari seluruh kepala tanpa helm, 29 persen tidak terdeteksi sama
+sekali dan 21 persen justru dibaca sebagai memakai helm. Yang kedua lebih
+berbahaya daripada yang pertama, karena tidak terdeteksi berakhir di "belum
+dapat dipastikan" sementara dikira helmet berakhir di pembebasan keliru.
+
+Kedua, **kedua kelas rompi saling tertukar di dua arah**, 16 persen `vest`
+dibaca `no-vest` dan 18 persen `no-vest` dibaca `vest`. Yang pertama
+menghasilkan tuduhan palsu, yang kedua pembebasan keliru. Ini menjelaskan
+kenapa dua laju kesalahan di bagian 6 tidak bisa ditekan bersamaan hanya
+dengan menggeser confidence.
+
+Ketiga, `helmet` dan `person` sudah cukup baik, 0,94 dan 0,88. Tidak ada yang
+perlu dikerjakan di sana, dan usaha perbaikan sebaiknya tidak dihabiskan di
+kelas yang sudah selesai.
+
 ### Kecepatan
 
-| Model dan perangkat | Per gambar |
+Diukur `notebooks/04_evaluasi_final.ipynb` pada model terpilih, imgsz 960.
+
+| Ukuran | Nilai |
 |---|---|
-| `v1` di Tesla T4 Colab | preprocess 1,9 ms, inference 15,8 ms, postprocess 3,9 ms |
-| `v1` di CPU laptop, imgsz 640 | median **26 ms** |
-| `v3` di CPU laptop, imgsz 960 | median **51 ms** |
+| Panggilan pertama, proses baru | **748 ms** |
+| Median setelah tiga pemanasan | **69 ms**, rentang 56 sampai 77 ms |
+| `model.val` batch 16 di CPU | 230 ms per gambar |
+| Tesla T4 di Colab | preprocess 2,9 ms, inference 6,5 ms, postprocess 1,9 ms |
 
-Resolusi 960 menggandakan waktu inference, dan itu harga yang dibayar. Pada
-Streamlit Community Cloud yang hanya CPU, satu gambar masih di bawah
-seperempat detik, jadi masih nyaman dipakai.
+Dua angka CPU di tabel itu berbeda sepuluh kali lipat dan keduanya benar. Yang
+230 ms berasal dari `model.val` yang memproses batch 16 sekaligus, dan di CPU
+batch besar justru memperlambat per gambar karena memorinya berebut. Aplikasi
+memproses satu gambar sekali jalan, jadi **69 ms yang berlaku**.
 
-**Panggilan pertama sekitar 900 ms**, hampir empat puluh kali median. Itu lazy
-init PyTorch, terjadi sekali per proses, bukan cacat. Tapi akibatnya nyata,
-unggahan pertama setelah aplikasi bangun dari tidur terasa lambat sedangkan
-berikutnya seketika. Angka median diambil setelah tiga kali pemanasan.
+Panggilan pertama 12 kali median. Itu lazy init PyTorch, sekali per proses,
+bukan cacat. Akibatnya nyata di aplikasi, unggahan pertama setelah aplikasi
+bangun dari tidur terasa lambat sedangkan berikutnya seketika.
+
+Angka itu **diukur di proses terpisah**, bukan di proses yang sama dengan
+evaluasi. Versi pertama notebook ini mengukurnya setelah `model.val` berjalan,
+dan melaporkan 57 ms, satu kali median. Angka itu bukan cold start, itu proses
+yang sudah hangat, dan kekeliruannya tidak kelihatan sampai hasilnya dibaca.
 
 ## 6. Lapisan analisis
 
@@ -477,6 +522,51 @@ akan dituduh melanggar. Dengan status ketiga, angkanya turun menjadi 2.
 **Status ketiga memotong tuduhan palsu dari 28,7 persen menjadi 2,0 persen,
 empat belas kali lipat.** Untuk sistem keselamatan yang keluarannya bisa
 berujung teguran terhadap orang, pertukaran itu jelas menguntungkan.
+
+### Confidence threshold, dari warisan menjadi keputusan
+
+`conf=0,25` adalah nilai bawaan Ultralytics. Selama sepuluh hari aplikasi ini
+memakainya tanpa alasan selain karena itu bawaannya. Hari 11 mengukurnya.
+
+`notebooks/04_evaluasi_final.ipynb` menjalankan model **sekali** pada ambang
+0,01, lalu menyaring deteksinya untuk sebelas ambang dan menilai tiap ambang
+dengan `nilai_vonis`, fungsi yang sama dengan yang dipakai laporan.
+
+| conf | Cakupan | Pembebasan keliru | Tuduhan palsu | Perlu diperiksa manusia | Pekerja palsu |
+|---|---|---|---|---|---|
+| 0,05 | 0,860 | 0,069 | 0,029 | 25,5% | 50 |
+| 0,10 | 0,855 | 0,053 | 0,019 | 27,9% | 46 |
+| 0,15 | 0,855 | 0,053 | 0,019 | 30,1% | 43 |
+| 0,20 | 0,846 | 0,053 | 0,020 | 31,5% | 42 |
+| **0,25** | **0,841** | **0,036** | **0,020** | **33,9%** | **40** |
+| 0,30 | 0,836 | 0,036 | 0,020 | 34,6% | 37 |
+| 0,40 | 0,832 | 0,036 | 0,020 | 36,5% | 33 |
+| 0,60 | 0,822 | 0,036 | 0,020 | 40,9% | 28 |
+| 0,70 | 0,808 | 0,036 | 0,010 | 44,5% | 26 |
+
+**Yang bergerak jelas hanya dua kolom terakhir, dan keduanya berlawanan.**
+Menurunkan ambang mengurangi beban pemeriksaan manusia, dari 44,5 persen di
+0,70 menjadi 25,5 persen di 0,05, tapi menambah pekerja palsu dari 26 menjadi
+50. Kotak person palsu menghasilkan baris di tabel kepatuhan yang tidak
+merujuk siapa pun, dan itu membuang waktu pengawas dengan cara yang berbeda.
+
+**Kedua laju kesalahan justru hampir datar.** Tuduhan palsu bertahan sekitar 2
+persen sepanjang 0,10 hingga 0,60. Pembebasan keliru turun dari 6,9 persen di
+0,05 ke 3,6 persen di 0,25, lalu berhenti membaik sampai 0,70.
+
+**Kesimpulannya, 0,25 dipertahankan, dan kini ada alasannya.** Ia titik awal
+dataran tempat pembebasan keliru sudah mencapai nilai terendahnya. Menaikkan
+lebih jauh tidak memperbaiki kesalahan apa pun, hanya menambah beban
+pemeriksaan. Menurunkan ke 0,10 mengurangi beban ke 27,9 persen tapi menaikkan
+pembebasan keliru dari 2 menjadi 3 pekerja.
+
+Selisih dua lawan tiga pekerja dari 56 tidak dapat dipisahkan dari kebetulan,
+jadi 0,10 sebenarnya juga dapat dipertahankan. Yang dipilih 0,25 karena pada
+sistem keselamatan, saat dua pilihan sama-sama masuk akal, yang diambil adalah
+yang lebih ketat terhadap kesalahan termahal.
+
+Slider di aplikasi tetap ada. Bedanya sekarang pengawas menggesernya dengan
+tabel ini di tangan, bukan menebak.
 
 ### Harga yang dibayar, dinyatakan terbuka
 
@@ -663,6 +753,20 @@ pemeriksaan manusia bertambah. Rinciannya di bagian 6.
 di CPU. Masih nyaman, tapi kalau suatu saat aplikasi ini diberi masukan video
 atau batch besar, angka itu yang pertama menjadi penghalang.
 
+**Empat kesalahan berat dari 179 pekerja, dan sebagiannya bukan salah model.**
+Analisis kegagalan di `notebooks/04_evaluasi_final.ipynb` mencari gambar dengan
+vonis meleset, lalu memilahnya. Kesalahan berat, yaitu pelanggar dinyatakan
+lengkap atau sebaliknya, hanya empat. Kesalahan ringan, yang berakhir di "belum
+dapat dipastikan", ada 56.
+
+Yang menarik pada `ppe_0857`. Di sana empat pekerja divonis TIDAK LENGKAP
+sementara ground truth mencatatnya BELUM DAPAT DIPASTIKAN, karena anotator
+memang tidak memberi kotak rompi sama sekali pada keempatnya. Model mendeteksi
+`no-vest`, dan melihat gambarnya, model tampak benar sementara anotasinya yang
+tidak lengkap. Sebagian dari 56 kesalahan ringan itu kemungkinan berjenis sama.
+Artinya angka akurasi vonis 66,5 persen adalah **batas bawah**, bukan nilai
+sebenarnya.
+
 **Aplikasi tidak pernah diuji pada foto di luar dataset ini.** Seluruh angka di
 README berasal dari test split Roboflow yang sama sumbernya dengan train.
 Perilakunya pada foto lokasi konstruksi Indonesia, dengan seragam dan warna
@@ -676,7 +780,7 @@ Urutannya begini, dan tiap langkah berdiri sendiri.
 notebooks/01_eda_dataset.ipynb     pemeriksaan data             [selesai]
 notebooks/02_training.ipynb        baseline di Google Colab     [selesai]
 notebooks/03_eksperimen.ipynb      empat run dan pemilihan      [selesai]
-notebooks/04_evaluasi_final.ipynb  confusion matrix dan kurva   [belum]
+notebooks/04_evaluasi_final.ipynb  evaluasi final, berisi output  [selesai]
 skrip/validasi_analitik.py         vonis dibanding ground truth [selesai]
 app.py                             aplikasi Streamlit           [jalan]
 ```
@@ -743,7 +847,8 @@ capstone4-apd-konstruksi/
 │   ├── test_lingkungan.py  6 uji susunan dependensi       [selesai]
 │   ├── test_analitik.py    19 uji lapisan analisis        [selesai]
 │   ├── test_tampilan.py    16 uji komponen tampilan       [selesai]
-│   └── test_eksperimen.py  13 uji perkakas eksperimen     [selesai]
+│   ├── test_eksperimen.py  13 uji perkakas eksperimen     [selesai]
+│   └── test_validasi.py    13 uji penilaian vonis         [selesai]
 ├── skrip/
 │   ├── validasi_analitik.py  validasi asosiasi di test set  [selesai]
 │   └── eksperimen.py       oversample dan aturan pemilihan model  [selesai]
@@ -751,12 +856,14 @@ capstone4-apd-konstruksi/
 │   ├── 01_eda_dataset.ipynb  lima pemeriksaan data       [selesai]
 │   ├── 02_training.ipynb     training baseline, berisi output  [selesai]
 │   ├── 03_eksperimen.ipynb   empat run hari 8 sampai 10  [selesai]
-│   └── 04_evaluasi_final.ipynb  confusion matrix dan kurva PR  [belum]
+│   └── 04_evaluasi_final.ipynb  evaluasi final, berisi output  [selesai]
 ├── contoh_gambar/          tiga gambar demo dari test split  [selesai]
 └── laporan/
     ├── eda_ringkasan.json  angka EDA, dikutip README      [selesai]
     ├── v1..v5_catatan.json  catatan lima run training     [selesai]
     ├── perbandingan_run.json  tabel dan alasan pemilihan  [selesai]
+    ├── evaluasi_final.json  confusion, sapuan conf, kegagalan  [selesai]
+    ├── gambar/             confusion matrix dan kurva PR, dipakai README
     └── validasi_analitik.json  angka validasi asosiasi    [selesai]
 ```
 

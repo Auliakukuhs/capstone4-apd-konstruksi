@@ -1,0 +1,220 @@
+{
+  "model": "apd_v3_oversample_nohelmet.pt",
+  "imgsz": 960,
+  "split": "test",
+  "conf_evaluasi": 0.001,
+  "map50": 0.6859,
+  "map50_95": 0.334,
+  "per_kelas": {
+    "helmet": {
+      "P": 0.8088,
+      "R": 0.8872,
+      "mAP50": 0.8538,
+      "mAP50_95": 0.4123
+    },
+    "no-helmet": {
+      "P": 0.7172,
+      "R": 0.4583,
+      "mAP50": 0.424,
+      "mAP50_95": 0.1473
+    },
+    "no-vest": {
+      "P": 0.6276,
+      "R": 0.6354,
+      "mAP50": 0.616,
+      "mAP50_95": 0.2432
+    },
+    "person": {
+      "P": 0.7903,
+      "R": 0.8455,
+      "mAP50": 0.8176,
+      "mAP50_95": 0.4766
+    },
+    "vest": {
+      "P": 0.8138,
+      "R": 0.7287,
+      "mAP50": 0.7183,
+      "mAP50_95": 0.3905
+    }
+  },
+  "kecepatan": {
+    "panggilan_pertama_proses_baru_ms": 748,
+    "median_ms": 68.8,
+    "min_ms": 55.8,
+    "maks_ms": 76.6,
+    "val_batch16_ms_per_gambar": 229.5,
+    "gpu_t4_ms": {
+      "preprocess": 2.9,
+      "inference": 6.5,
+      "loss": 0.0,
+      "postprocess": 1.9
+    }
+  },
+  "conf_aplikasi": 0.25,
+  "sapuan_conf": [
+    {
+      "conf": 0.05,
+      "cakupan_pekerja": 0.8598,
+      "laju_pembebasan_keliru": 0.069,
+      "laju_tuduhan_palsu": 0.0291,
+      "porsi_perlu_pemeriksaan_manusia": 0.2554,
+      "akurasi_vonis": 0.712,
+      "pekerja_palsu": 50,
+      "pekerja_terpasangkan": 184
+    },
+    {
+      "conf": 0.1,
+      "cakupan_pekerja": 0.8551,
+      "laju_pembebasan_keliru": 0.0526,
+      "laju_tuduhan_palsu": 0.0194,
+      "porsi_perlu_pemeriksaan_manusia": 0.2787,
+      "akurasi_vonis": 0.7104,
+      "pekerja_palsu": 46,
+      "pekerja_terpasangkan": 183
+    },
+    {
+      "conf": 0.15,
+      "cakupan_pekerja": 0.8551,
+      "laju_pembebasan_keliru": 0.0526,
+      "laju_tuduhan_palsu": 0.0194,
+      "porsi_perlu_pemeriksaan_manusia": 0.3005,
+      "akurasi_vonis": 0.6885,
+      "pekerja_palsu": 43,
+      "pekerja_terpasangkan": 183
+    },
+    {
+      "conf": 0.2,
+      "cakupan_pekerja": 0.8458,
+      "laju_pembebasan_keliru": 0.0526,
+      "laju_tuduhan_palsu": 0.0198,
+      "porsi_perlu_pemeriksaan_manusia": 0.3149,
+      "akurasi_vonis": 0.674,
+      "pekerja_palsu": 42,
+      "pekerja_terpasangkan": 181
+    },
+    {
+      "conf": 0.25,
+      "cakupan_pekerja": 0.8411,
+      "laju_pembebasan_keliru": 0.0357,
+      "laju_tuduhan_palsu": 0.0198,
+      "porsi_perlu_pemeriksaan_manusia": 0.3389,
+      "akurasi_vonis": 0.6667,
+      "pekerja_palsu": 40,
+      "pekerja_terpasangkan": 180
+    },
+    {
+      "conf": 0.3,
+      "cakupan_pekerja": 0.8364,
+      "laju_pembebasan_keliru": 0.0357,
+      "laju_tuduhan_palsu": 0.0198,
+      "porsi_perlu_pemeriksaan_manusia": 0.3464,
+      "akurasi_vonis": 0.6536,
+      "pekerja_palsu": 37,
+      "pekerja_terpasangkan": 179
+    },
+    {
+      "conf": 0.35,
+      "cakupan_pekerja": 0.8364,
+      "laju_pembebasan_keliru": 0.0357,
+      "laju_tuduhan_palsu": 0.0198,
+      "porsi_perlu_pemeriksaan_manusia": 0.3575,
+      "akurasi_vonis": 0.6425,
+      "pekerja_palsu": 35,
+      "pekerja_terpasangkan": 179
+    },
+    {
+      "conf": 0.4,
+      "cakupan_pekerja": 0.8318,
+      "laju_pembebasan_keliru": 0.0357,
+      "laju_tuduhan_palsu": 0.0198,
+      "porsi_perlu_pemeriksaan_manusia": 0.3652,
+      "akurasi_vonis": 0.6292,
+      "pekerja_palsu": 33,
+      "pekerja_terpasangkan": 178
+    },
+    {
+      "conf": 0.5,
+      "cakupan_pekerja": 0.8318,
+      "laju_pembebasan_keliru": 0.0357,
+      "laju_tuduhan_palsu": 0.0198,
+      "porsi_perlu_pemeriksaan_manusia": 0.3652,
+      "akurasi_vonis": 0.6292,
+      "pekerja_palsu": 30,
+      "pekerja_terpasangkan": 178
+    },
+    {
+      "conf": 0.6,
+      "cakupan_pekerja": 0.8224,
+      "laju_pembebasan_keliru": 0.0357,
+      "laju_tuduhan_palsu": 0.0202,
+      "porsi_perlu_pemeriksaan_manusia": 0.4091,
+      "akurasi_vonis": 0.5966,
+      "pekerja_palsu": 28,
+      "pekerja_terpasangkan": 176
+    },
+    {
+      "conf": 0.7,
+      "cakupan_pekerja": 0.8084,
+      "laju_pembebasan_keliru": 0.0357,
+      "laju_tuduhan_palsu": 0.0104,
+      "porsi_perlu_pemeriksaan_manusia": 0.4451,
+      "akurasi_vonis": 0.5896,
+      "pekerja_palsu": 26,
+      "pekerja_terpasangkan": 173
+    }
+  ],
+  "kegagalan": {
+    "gambar_dengan_kesalahan_berat": 4,
+    "total_kesalahan_berat": 4,
+    "total_kesalahan_ringan": 56,
+    "terburuk": [
+      {
+        "gambar": "ppe_0720_jpg.rf.6e908f9bc5249819bf76436949c76a3c.txt",
+        "berat": 1,
+        "ringan": 4,
+        "rincian": [
+          "#2 acuan LENGKAP tapi diduga BELUM DAPAT DIPASTIKAN",
+          "#12 acuan LENGKAP tapi diduga TIDAK LENGKAP",
+          "#7 acuan LENGKAP tapi diduga BELUM DAPAT DIPASTIKAN",
+          "#3 acuan LENGKAP tapi diduga BELUM DAPAT DIPASTIKAN",
+          "#5 acuan LENGKAP tapi diduga BELUM DAPAT DIPASTIKAN"
+        ]
+      },
+      {
+        "gambar": "ppe_0120_jpg.rf.53fa2f12be46d135ccd480c838d0da1c.txt",
+        "berat": 1,
+        "ringan": 0,
+        "rincian": [
+          "#1 acuan TIDAK LENGKAP tapi diduga LENGKAP"
+        ]
+      },
+      {
+        "gambar": "ppe_0403_jpg.rf.9213e1b56dd961515b0979352b134fe5.txt",
+        "berat": 1,
+        "ringan": 0,
+        "rincian": [
+          "#1 acuan TIDAK LENGKAP tapi diduga LENGKAP"
+        ]
+      },
+      {
+        "gambar": "ppe_0498_jpg.rf.a083f26289f80105edb0ce8cf74c033e.txt",
+        "berat": 1,
+        "ringan": 0,
+        "rincian": [
+          "#1 acuan LENGKAP tapi diduga TIDAK LENGKAP"
+        ]
+      },
+      {
+        "gambar": "ppe_0857_jpg.rf.67f5018b277da56c60e1b58ff7340e8c.txt",
+        "berat": 0,
+        "ringan": 4,
+        "rincian": [
+          "#2 acuan BELUM DAPAT DIPASTIKAN tapi diduga TIDAK LENGKAP",
+          "#3 acuan BELUM DAPAT DIPASTIKAN tapi diduga TIDAK LENGKAP",
+          "#4 acuan BELUM DAPAT DIPASTIKAN tapi diduga TIDAK LENGKAP",
+          "#1 acuan BELUM DAPAT DIPASTIKAN tapi diduga TIDAK LENGKAP"
+        ]
+      }
+    ]
+  }
+}

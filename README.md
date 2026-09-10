@@ -763,6 +763,12 @@ capstone4-apd-konstruksi/
 `src/analitik.py` sengaja tidak mengimpor Streamlit maupun Ultralytics, supaya
 logikanya bisa diuji tanpa GPU dan tanpa menjalankan aplikasi.
 
+Hanya dua bobot yang masuk repo, model terpilih dan baseline sebagai
+pembanding. Tiga bobot lain hasil eksperimen, yaitu `v2`, `v4`, dan `v5`,
+disimpan di luar repo pada `../hasil-colab/bobot/`, karena berjumlah 30 MB dan
+tidak dipakai aplikasi. Catatan versi kelimanya tetap ada di `laporan/`, sebab
+angka v4 dan v5 dikutip bagian 5 sebagai hasil negatif.
+
 ## Catatan versi
 
 `requirements.txt` diuji hari 3 di virtualenv bersih, bukan diasumsikan.

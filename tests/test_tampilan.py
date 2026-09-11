@@ -29,6 +29,7 @@ from src.tampilan import (  # noqa: E402
     SINGKATAN,
     WARNA_VONIS,
     gambar_vonis,
+    peringatan_kelas_terlemah,
     peringatan_pencahayaan,
     pesan_banner,
     sebagai_csv,
@@ -189,6 +190,51 @@ def test_peringatan_pencahayaan():
     assert peringatan_pencahayaan(LUMA_MIN - 20).startswith("Gambar ini gelap")
     assert "sangat terang" in peringatan_pencahayaan(LUMA_MAKS + 20)
     assert peringatan_pencahayaan((LUMA_MIN + LUMA_MAKS) / 2) == ""
+
+
+# ------------------------------------------- keterbatasan model
+
+
+def catatan_uji(**recall):
+    return {"per_kelas": {k: {"R": v} for k, v in recall.items()}}
+
+
+def test_kelas_terlemah_dicari_dari_angkanya():
+    """Bug nyata yang pernah ada di sini.
+
+    Kalimat ini dulu menulis recall 0,333 langsung di dalam teks. Begitu model
+    berganti, tabel di panel yang sama menampilkan 0,458 sementara kalimat di
+    bawahnya masih menyebut 0,333, dan tidak ada yang memberi tahu.
+    """
+    pesan = peringatan_kelas_terlemah(catatan_uji(person=0.85, helmet=0.88, **{"no-vest": 0.41}))
+    assert "no-vest" in pesan
+    assert "0,41" in pesan, "desimal harus koma, mengikuti prosa repo"
+    assert "no-helmet" not in pesan, "kelas terlemah tidak boleh diasumsikan"
+
+
+def test_kelas_terlemah_ikut_berubah_saat_modelnya_berubah():
+    lemah = peringatan_kelas_terlemah(catatan_uji(**{"no-helmet": 0.333, "person": 0.9}))
+    baik = peringatan_kelas_terlemah(catatan_uji(**{"no-helmet": 0.458, "person": 0.9}))
+    assert "0,333" in lemah and "0,458" in baik
+    assert lemah != baik
+
+
+def test_kalimat_menyesuaikan_seberapa_buruk():
+    assert "lebih dari separuh" in peringatan_kelas_terlemah(catatan_uji(a=0.40))
+    assert "sebagian" in peringatan_kelas_terlemah(catatan_uji(a=0.70))
+
+
+def test_jumlah_contoh_latih_disebut_kalau_tercatat():
+    c = catatan_uji(**{"no-helmet": 0.458})
+    c["oversample"] = {"instance_sesudah": {"no-helmet": 376}}
+    assert "376 contoh latih" in peringatan_kelas_terlemah(c)
+
+
+def test_catatan_kosong_tidak_menghasilkan_kalimat():
+    """Tanpa catatan versi, lebih baik diam daripada mengarang angka."""
+    assert peringatan_kelas_terlemah({}) == ""
+    assert peringatan_kelas_terlemah({"per_kelas": {}}) == ""
+    assert peringatan_kelas_terlemah({"per_kelas": {"a": "bukan dict"}}) == ""
 
 
 # --------------------------------------------------------------- csv

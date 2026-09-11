@@ -3,7 +3,7 @@
 Capstone Project Module 4, Purwadhika Digital Technology School.
 Object detection untuk memeriksa kelengkapan alat pelindung diri di lokasi konstruksi.
 
-> Status pengerjaan: **hari 12 dari 15**. Bagian yang ditandai `[belum]` diisi
+> Status pengerjaan: **hari 13 dari 15**. Bagian yang ditandai `[belum]` diisi
 > sesuai urutan di `../catatan/URUTAN-KERJA.md`.
 >
 > Aplikasinya lengkap dan hidup di Streamlit Community Cloud, lapisan
@@ -14,12 +14,11 @@ Object detection untuk memeriksa kelengkapan alat pelindung diri di lokasi konst
 > baseline, dan itu disengaja.** Alasannya di bagian 5.
 >
 > Evaluasi final sudah dijalankan, termasuk confusion matrix, sapuan confidence
-> threshold, dan analisis kegagalan. 74 uji lolos, tidak ada kredensial di repo,
+> threshold, dan analisis kegagalan. 79 uji lolos, tidak ada kredensial di repo,
 > dan notebook 01 serta 04 menghasilkan angka yang sama saat dijalankan ulang
 > dari atas ke bawah.
 >
-> Sisa pekerjaan hari 13 sampai 15, yaitu naskah video, rekaman, dan
-> pengumpulan.
+> Sisa pekerjaan hari 14 dan 15, yaitu rekaman video dan pengumpulan.
 
 ## 1. Masalah yang diselesaikan
 
@@ -671,12 +670,22 @@ belum tentu deteksi yang lebih benar. Angka resmi tetap yang dari gambar asli.
 
 ### Panel keterbatasan model ada di dalam aplikasi
 
-`tampilan.panel_model` membaca `laporan/v1_baseline_640_catatan.json` dan
-menampilkan mAP, tabel per kelas, dan satu peringatan yang menyebut angka
-terburuknya, yaitu recall `no-helmet` 0,333.
+`tampilan.panel_model` membaca catatan versi bobot yang sedang dipilih, lalu
+menampilkan mAP, tabel per kelas, dan satu peringatan yang menyebut kelas
+terlemahnya.
 
 Aplikasi yang menjatuhkan vonis tentang orang wajib menyatakan seberapa bisa ia
 dipercaya, dan angka terburuknya justru yang paling perlu terlihat.
+
+Kalimat peringatan itu **dihitung dari catatan, bukan ditulis tetap**, dan ada
+sebabnya. Versi pertamanya menulis angka 0,333 langsung di dalam teks, yaitu
+recall milik baseline. Begitu model berganti ke `v3`, tabel di panel yang sama
+menampilkan 0,458 sementara kalimat tepat di bawahnya masih menyebut 0,333.
+Panel itu membantah dirinya sendiri, dan tidak ada yang memberi tahu.
+
+Sekarang kelas terlemahnya pun dicari dari angkanya, bukan diasumsikan
+`no-helmet`, supaya kalimat itu tetap benar kalau suatu saat kelas lain yang
+jatuh. Lima uji di `tests/test_tampilan.py` menjaga perilakunya.
 
 ### Yang diverifikasi, bukan diasumsikan
 
@@ -848,7 +857,7 @@ capstone4-apd-konstruksi/
 │   ├── test_detector.py    7 uji pemuatan dan pracitra    [selesai]
 │   ├── test_lingkungan.py  6 uji susunan dependensi       [selesai]
 │   ├── test_analitik.py    19 uji lapisan analisis        [selesai]
-│   ├── test_tampilan.py    16 uji komponen tampilan       [selesai]
+│   ├── test_tampilan.py    21 uji komponen tampilan       [selesai]
 │   ├── test_eksperimen.py  13 uji perkakas eksperimen     [selesai]
 │   └── test_validasi.py    13 uji penilaian vonis         [selesai]
 ├── skrip/

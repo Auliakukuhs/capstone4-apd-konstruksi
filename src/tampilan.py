@@ -347,6 +347,41 @@ def dashboard_sesi(sesi, kunci_reset: str = "reset_sesi") -> None:
         )
 
 
+def peringatan_kelas_terlemah(catatan: dict) -> str:
+    """Kalimat keterbatasan yang dihitung dari catatan, bukan ditulis tetap.
+
+    Versi pertama fungsi ini menulis angkanya langsung di dalam kalimat, yaitu
+    recall 0,333 milik baseline. Begitu model berganti, tabel di panel yang
+    sama menampilkan 0,458 sementara kalimat di bawahnya masih menyebut 0,333,
+    dan tidak ada yang memberi tahu bahwa keduanya bertentangan.
+
+    Kelas terlemah pun dicari dari angkanya, bukan diasumsikan `no-helmet`,
+    supaya kalimat ini tetap benar kalau suatu saat kelas lain yang jatuh.
+    """
+    per_kelas = catatan.get("per_kelas") or {}
+    berrecall = {k: v["R"] for k, v in per_kelas.items() if isinstance(v, dict) and "R" in v}
+    if not berrecall:
+        return ""
+
+    nama = min(berrecall, key=berrecall.__getitem__)
+    r = berrecall[nama]
+    porsi = "lebih dari separuh" if r < 0.5 else "sebagian"
+
+    # Desimal ditulis dengan koma, mengikuti prosa Indonesia di seluruh repo.
+    angka = f"{r:.3f}".replace(".", ",")
+    kalimat = (
+        f"Keterbatasan yang paling perlu diketahui. Kelas terlemah adalah "
+        f"`{nama}` dengan recall {angka} di test set, jadi {porsi} kejadian "
+        f"kelas itu masih terlewat. Itulah sebabnya tidak adanya deteksi tidak "
+        f"pernah dijadikan bukti bahwa pekerjanya patuh."
+    )
+
+    latih = (catatan.get("oversample") or {}).get("instance_sesudah", {}).get(nama)
+    if latih:
+        kalimat += f" Kelas itu hanya punya {latih} contoh latih."
+    return kalimat
+
+
 def panel_model(catatan: dict) -> None:
     """Metrik model, ditampilkan terbuka bukan disembunyikan.
 
@@ -389,13 +424,9 @@ def panel_model(catatan: dict) -> None:
                 hide_index=True,
             )
 
-        st.warning(
-            "Keterbatasan yang paling perlu diketahui. Kelas `no-helmet` hanya "
-            "punya 94 contoh latih dan recall-nya 0,333 di test set, jadi dari "
-            "tiga pelanggaran helm model rata-rata hanya menemukan satu. Itulah "
-            "sebabnya tidak adanya deteksi tidak pernah dijadikan bukti bahwa "
-            "pekerjanya patuh."
-        )
+        pesan = peringatan_kelas_terlemah(catatan)
+        if pesan:
+            st.warning(pesan)
 
 
 def peringatan_pencahayaan(luma: float) -> str:
